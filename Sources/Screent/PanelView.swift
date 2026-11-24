@@ -17,9 +17,10 @@ final class TranslationPanel: NSPanel {
         hasShadow = true
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        minSize = NSSize(width: 400, height: 180)
+        minSize = NSSize(width: 440, height: 180)
         appearance = NSAppearance(named: .darkAqua)
 
+        self.model = model
         let host = FirstMouseHostingView(rootView: PanelView().environmentObject(model))
         // Розмір вікна задає користувач, а не вміст: інакше довга стрічка розтягує вікно за межі екрана.
         host.sizingOptions = []
@@ -34,6 +35,14 @@ final class TranslationPanel: NSPanel {
     }
 
     override var canBecomeKey: Bool { true }
+
+    private weak var model: AppModel?
+
+    /// Прокрутка коліщатком/трекпадом — ознака, що користувач гортає сам (а не автопрокрутка).
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel { model?.lastUserScroll = Date() }
+        super.sendEvent(event)
+    }
 
     /// Вікно ніколи не більше за видиму частину екрана і не виходить за її межі.
     override func setFrame(_ frameRect: NSRect, display flag: Bool) {
@@ -63,6 +72,9 @@ private final class FirstMouseHostingView<Content: View>: NSHostingView<Content>
 struct PanelView: View {
     @EnvironmentObject var model: AppModel
 
+    /// 0 при ≤30%, до 0.9 при 100%.
+    private var darkTint: Double { max(0, (model.panelOpacity - 0.3) / 0.7) * 0.9 }
+
     var body: some View {
         VStack(spacing: 0) {
             Header()
@@ -81,9 +93,14 @@ struct PanelView: View {
             Footer()
         }
         .background(
-            VisualEffect()
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .opacity(model.panelOpacity)
+            ZStack {
+                VisualEffect()
+                // Сам матеріал напівпрозорий навіть на 100%, тож поверх нього — темний шар:
+                // на 100% фон майже суцільний, і текст читається поверх будь-чого.
+                Color(white: 0.07).opacity(darkTint)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .opacity(min(1, model.panelOpacity * 1.6))
         )
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
             .strokeBorder(.white.opacity(0.04 + 0.06 * model.panelOpacity), lineWidth: 1))
@@ -116,6 +133,8 @@ private struct Header: View {
                        tint: model.paused ? Theme.ok : nil,
                        action: model.onTogglePause)
             ModeToggle(mode: model.mode, onChange: model.onSetMode)
+            IconButton(symbol: bellSymbol, help: bellHelp, tint: bellTint,
+                       action: { model.alertsMuted.toggle(); model.flash(model.alertsMuted ? "Сповіщення вимкнено" : "Сповіщення увімкнено") })
             IconButton(symbol: "viewfinder", help: "Виділити область (⌥⇧R)", action: model.onSelectRegion)
             IconButton(symbol: "arrow.counterclockwise", help: "Нова сесія — очистити стрічку й контекст Claude",
                        action: model.onNewSession)
@@ -128,6 +147,18 @@ private struct Header: View {
         .padding(.trailing, 8)
         .frame(height: 44)
         .background(WindowDragArea())
+    }
+
+    private var hasName: Bool { !model.myNames.trimmingCharacters(in: .whitespaces).isEmpty }
+    private var bellSymbol: String { model.alertsMuted ? "bell.slash" : "bell.fill" }
+    private var bellTint: Color? {
+        if model.alertsMuted { return .white.opacity(0.35) }
+        return hasName ? Theme.accent : nil
+    }
+    private var bellHelp: String {
+        if model.alertsMuted { return "Сповіщення про згадку імені вимкнено — увімкнути" }
+        return hasName ? "Вимкнути сповіщення про згадку імені"
+                       : "Сповіщення: вкажіть своє ім'я в налаштуваннях (працює в авто-режимі)"
     }
 
     private var statusLabel: String {
@@ -490,6 +521,11 @@ private struct MentionBanner: View {
 
 private struct Feed: View {
     @EnvironmentObject var model: AppModel
+    /// Стрічка «приклеєна» до низу. Знімається, коли користувач сам прокрутив угору.
+    @State private var follow = true
+    /// Поки користувач читає історію, з'явився новий текст.
+    @State private var hasNew = false
+    @State private var viewport: CGFloat = 0
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -503,27 +539,81 @@ private struct Feed: View {
                             .id(entry.id)
                     }
                     Color.clear.frame(height: 1).id("bottom")
+                        .background(GeometryReader { g in
+                            Color.clear.preference(key: BottomOffsetKey.self,
+                                                   value: g.frame(in: .named("feed")).maxY)
+                        })
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
+            .coordinateSpace(name: "feed")
             .scrollIndicators(.automatic)
-            .defaultScrollAnchor(.bottom)
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { viewport = geo.size.height }
+                    .onChange(of: geo.size) { _, size in
+                        viewport = size.height
+                        if follow { proxy.scrollTo("bottom", anchor: .bottom) }
+                    }
+            })
+            .onPreferenceChange(BottomOffsetKey.self) { bottomY in
+                let atBottom = bottomY <= viewport + 40
+                if atBottom {
+                    // Користувач сам докрутив до кінця — знову стежимо за новим текстом.
+                    if !follow { follow = true; hasNew = false }
+                } else if follow, model.userScrolledRecently {
+                    follow = false
+                }
+            }
             // Новий запис — плавно вниз; потік тексту в останньому записі — миттєво, без смикання.
             .onChange(of: model.entries.count) { _, _ in
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                if follow {
+                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                } else {
+                    hasNew = true
+                }
             }
             .onChange(of: model.entries.last) { _, _ in
-                proxy.scrollTo("bottom", anchor: .bottom)
+                if follow { proxy.scrollTo("bottom", anchor: .bottom) } else { hasNew = true }
             }
-            .onChange(of: model.showOriginal) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-            .onChange(of: model.mention?.id) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-            .background(GeometryReader { geo in
-                Color.clear.onChange(of: geo.size) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-            })
+            .onChange(of: model.showOriginal) { _, _ in if follow { proxy.scrollTo("bottom", anchor: .bottom) } }
+            .onChange(of: model.entries.isEmpty) { _, empty in if empty { follow = true; hasNew = false } }
             .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
+            .overlay(alignment: .bottomTrailing) {
+                if !follow {
+                    Button {
+                        follow = true
+                        hasNew = false
+                        withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo("bottom", anchor: .bottom) }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.down").font(.system(size: 11, weight: .semibold))
+                            if hasNew {
+                                Text("Нове").font(.system(size: 11, weight: .semibold))
+                            }
+                        }
+                        .foregroundStyle(.black.opacity(0.85))
+                        .padding(.horizontal, hasNew ? 12 : 0)
+                        .frame(minWidth: 30, minHeight: 30)
+                        .background(Capsule().fill(Theme.accent))
+                        .shadow(color: .black.opacity(0.4), radius: 8, y: 2)
+                    }
+                    .buttonStyle(PressStyle())
+                    .help("До останнього повідомлення — знову автопрокрутка")
+                    .padding(14)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: follow)
+            .animation(.easeOut(duration: 0.2), value: hasNew)
         }
     }
+}
+
+private struct BottomOffsetKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 private struct EntryView: View {

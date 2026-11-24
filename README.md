@@ -88,7 +88,7 @@ tail -f ~/Library/Logs/Screent.log
 3. **Pick a mode** with the toggle in the panel header:
    - **Button:** press **⌥Space**, or the *Translate* button.
    - **Auto:** the region is checked every 0.8 s. Text is sent once it has stopped changing, or after about 24 new words.
-4. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath.
+4. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath. The feed follows the newest text. Scroll up to read history and autoscroll pauses. A ↓ button appears, marked **Нове** ("new") when something new arrives. Click it, or scroll back to the bottom, to follow again.
 
 | Shortcut | Action |
 |---|---|
@@ -108,10 +108,10 @@ tail -f ~/Library/Logs/Screent.log
 | ⚪ grey | Paused |
 | 🔴 red | Error. The message is shown at the bottom of the panel. |
 
-**Panel header:** pause, mode toggle, select region, ↺ new session, settings (sliders icon) and quit (power icon).
+**Panel header:** pause, mode toggle, 🔔 mute/unmute name alerts, select region, ↺ new session, settings (sliders icon) and quit (power icon).
 
 **Settings section** (opens under the header):
-- **Panel background:** opacity of the glass background, 10–100%, default 100%. The text stays sharp and gets a soft shadow when the background is very transparent.
+- **Panel background:** opacity of the background, 10–100%, default 100%. At 100% the background is almost solid dark, so text is readable over anything. Lower values reveal more of the glass behind it, and the text gets a soft shadow.
 - **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
 - **Features:** **Translation** and **Hints** toggle independently. See [Translation, English mode and AI hints](#translation-english-mode-and-ai-hints).
 - **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
@@ -159,7 +159,8 @@ Name alerts work in **auto mode** only, because the region has to be watched con
    - plays a sound and flashes the region frame;
    - brings the panel to the front and shows a **"ВАС ЗГАДАЛИ" ("you were mentioned")** card with the line that mentioned you;
    - asks Claude, in the same session and so with the full meeting context, who addressed you, what they want, and what you could answer (`→ …`).
-3. Close the card with ×. After an alert, Screent waits 20 s before alerting again, so it doesn't ring on every caption line.
+3. To silence alerts quickly, for example while you're presenting, click the 🔔 bell in the panel header. It turns into a crossed-out bell, and clicking it again turns alerts back on. The setting is remembered.
+4. Close the card with ×. After an alert, Screent waits 20 s before alerting again, so it doesn't ring on every caption line.
 
 ## How it works
 

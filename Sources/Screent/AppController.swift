@@ -319,6 +319,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func canAlert() -> Bool {
+        if settings.alertsMuted { return false }
         if let last = lastMentionAt, Date().timeIntervalSince(last) < 20 { return false }
         return true
     }
@@ -464,7 +465,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// В авто-режимі повідомляємо Claude ім'я користувача, щоб він теж помічав звернення.
     private func userHeader() -> String {
         let names = settings.myNames.trimmingCharacters(in: .whitespaces)
-        guard settings.mode == .auto, !names.isEmpty else { return "" }
+        guard settings.mode == .auto, !settings.alertsMuted, !names.isEmpty else { return "" }
         return "USER NAME: \(names)\n"
     }
 

@@ -48,12 +48,18 @@ final class AppModel: ObservableObject {
     @Published var notice: String?
     @Published var paused = false
     @Published var showSettings = false
+    /// Не @Published: оновлюється на кожну подію прокрутки, перемальовувати нічого не треба.
+    var lastUserScroll: Date?
+    var userScrolledRecently: Bool { lastUserScroll.map { Date().timeIntervalSince($0) < 0.6 } ?? false }
     @Published var mention: MentionAlert?
     @Published var translateEnabled = AppSettings.shared.translateEnabled {
         didSet { AppSettings.shared.translateEnabled = translateEnabled }
     }
     @Published var hintsEnabled = AppSettings.shared.hintsEnabled {
         didSet { AppSettings.shared.hintsEnabled = hintsEnabled }
+    }
+    @Published var alertsMuted = AppSettings.shared.alertsMuted {
+        didSet { AppSettings.shared.alertsMuted = alertsMuted }
     }
     @Published var myNames = AppSettings.shared.myNames {
         didSet { AppSettings.shared.myNames = myNames }

@@ -61,6 +61,12 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "hintsEnabled") }
     }
 
+    /// Сповіщення про згадку імені вимкнено.
+    var alertsMuted: Bool {
+        get { defaults.bool(forKey: "alertsMuted") }
+        set { defaults.set(newValue, forKey: "alertsMuted") }
+    }
+
     /// Область захоплення в глобальних координатах AppKit (початок — лівий нижній кут).
     var region: CGRect? {
         get {
