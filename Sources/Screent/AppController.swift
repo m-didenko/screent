@@ -50,6 +50,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var recentCaptions = ""
     private var lastMentionAt: Date?
     private var mentionPending = false
+    private var modelSwitchPending = false
 
     // AI-підказки
     private var captionsSinceHint = ""
@@ -76,6 +77,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onQuit = { NSApp.terminate(nil) }
         model.onDismissMention = { [weak self] in self?.model.mention = nil }
         model.onHint = { [weak self] in self?.hintNow() }
+        model.onSelectModel = { [weak self] in self?.switchModel($0) }
         frameWindow.setHighlight(settings.regionHighlight)
 
         panel = TranslationPanel(model: model)
@@ -457,6 +459,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Після кожної відповіді: спершу згадка, потім підказка, потім відкладений переклад.
     private func drainQueue() {
+        if modelSwitchPending { applyModelSwitch() }
         if mentionPending { sendMention() }
         else if hintPending { requestHint(auto: false) }
         else if pending { pending = false; translateNow() }
@@ -681,12 +684,28 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func menuModel(_ sender: NSMenuItem) {
-        guard let alias = sender.representedObject as? String, alias != settings.model else { return }
+        guard let alias = sender.representedObject as? String else { return }
+        switchModel(alias)
+    }
+
+    /// Змінює модель одразу, продовжуючи ту саму сесію Claude Code (--resume): контекст мітингу зберігається.
+    private func switchModel(_ alias: String) {
+        guard alias != settings.model else { return }
         settings.model = alias
-        if model.entries.isEmpty && !busy {
-            startSession()
-        } else {
-            model.flash("The model applies to the next session")
+        model.selectedModel = alias
+        if busy { modelSwitchPending = true; return }
+        applyModelSwitch()
+    }
+
+    private func applyModelSwitch() {
+        modelSwitchPending = false
+        let name = settings.model.prefix(1).uppercased() + settings.model.dropFirst()
+        do {
+            try bridge.start(model: settings.model, resume: model.entries.isEmpty ? nil : bridge.sessionID)
+            restoreStatus()
+            model.flash("Model: \(name) — context kept")
+        } catch {
+            model.status = .error(error.localizedDescription)
         }
     }
 

@@ -113,7 +113,8 @@ tail -f ~/Library/Logs/Screent.log
 **Settings section** (opens under the header):
 - **Text size:** size of the feed, hint and mention text, 0–100%. The default is 50%, which is the base size; 0% is 0.7× and 100% is 1.6×.
 - **Panel background:** opacity of the background, 10–100%, default 100%. At 100% the background is almost solid dark, so text is readable over anything. Lower values reveal more of the glass behind it, and the text gets a soft shadow.
-- **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
+- **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%. The default is 50%; higher values make the highlight up to twice as strong. It never affects OCR.
+- **Model:** Sonnet (default), Haiku or Opus. Switches immediately; the session is resumed with the new model, so context is kept.
 - **Translate to:** Ukrainian or Russian. You can switch mid-session without losing context: each request to Claude carries the target language.
 - **Features:** **Translation** and **Hints** toggle independently. See [Translation, English mode and AI hints](#translation-english-mode-and-ai-hints).
 - **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
@@ -123,7 +124,7 @@ tail -f ~/Library/Logs/Screent.log
 
 | Item | What it does |
 |---|---|
-| Model | Sonnet (balanced), Haiku (fastest) or Opus (most accurate). Takes effect in a new session. |
+| Model | Sonnet (balanced, default), Haiku (fastest) or Opus (most accurate). Also in panel settings. Switches immediately and keeps the meeting context (the same Claude Code session is resumed). |
 | New session | Clears the feed and Claude's context |
 | Export transcript… | Saves a Markdown file with the original, the translation and the notes |
 | Show region frame | Shows or hides the highlight around the captured region |

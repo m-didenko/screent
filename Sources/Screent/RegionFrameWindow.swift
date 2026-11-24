@@ -26,7 +26,8 @@ final class RegionFrameWindow: NSWindow {
 
     func setActive(_ active: Bool) { frameView.active = active }
     func setPaused(_ paused: Bool) { frameView.paused = paused }
-    func setHighlight(_ level: Double) { frameView.level = CGFloat(level) }
+    /// Налаштування 0…1 → інтенсивність 0…2 (50% = 1, базова).
+    func setHighlight(_ setting: Double) { frameView.level = CGFloat(setting * 2) }
     func flash() { frameView.flash() }
 }
 
@@ -51,8 +52,9 @@ private final class FrameView: NSView {
         let base = NSColor.white.withAlphaComponent(active ? 0.55 : 0.4)
         let color = base.blended(withFraction: max(highlight, active ? 0.55 : 0), of: Theme.accentNS) ?? base
         drawCornerBrackets(in: bounds.insetBy(dx: 3, dy: 3), length: 12,
-                           width: 2 + highlight, color: color.withAlphaComponent((0.45 + 0.55 * max(highlight, active ? 0.4 : 0))
-                                                                 * min(1, 0.25 + level * 1.5)))
+                           width: 2 + highlight + max(0, level - 1),
+                           color: color.withAlphaComponent(min(1, (0.45 + 0.55 * max(highlight, active ? 0.4 : 0))
+                                                                 * min(1.8, 0.25 + level * 1.5))))
     }
 
     func flash() {

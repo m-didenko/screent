@@ -91,7 +91,8 @@ final class ClaudeBridge {
 
     var isRunning: Bool { process?.isRunning ?? false }
 
-    func start(model: String) throws {
+    /// `resume` — продовжити наявну сесію (з іншою моделлю), зберігши весь контекст.
+    func start(model: String, resume: String? = nil) throws {
         stop()
         let exe = try Self.findClaude()
 
@@ -112,6 +113,7 @@ final class ClaudeBridge {
             "--strict-mcp-config",
             "--setting-sources", "",
             "--model", model,
+        ] + (resume.map { ["--resume", $0] } ?? []) + [
             "--system-prompt", TranslatorPrompt.system,
         ]
         var env = ProcessInfo.processInfo.environment

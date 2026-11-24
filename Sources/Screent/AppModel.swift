@@ -58,6 +58,7 @@ final class AppModel: ObservableObject {
     @Published var targetLanguage = AppSettings.shared.targetLanguage {
         didSet { AppSettings.shared.targetLanguage = targetLanguage }
     }
+    @Published var selectedModel = AppSettings.shared.model
     @Published var hintsEnabled = AppSettings.shared.hintsEnabled {
         didSet { AppSettings.shared.hintsEnabled = hintsEnabled }
     }
@@ -87,6 +88,7 @@ final class AppModel: ObservableObject {
     var onQuit: () -> Void = {}
     var onDismissMention: () -> Void = {}
     var onHint: () -> Void = {}
+    var onSelectModel: (String) -> Void = { _ in }
 
     private var noticeTask: Task<Void, Never>?
 

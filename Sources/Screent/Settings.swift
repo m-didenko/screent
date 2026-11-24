@@ -48,9 +48,15 @@ final class AppSettings {
     }
 
     /// Яскравість підсвітки зони захоплення: 0…1.
+    /// 50% (за замовчуванням) = колишні 100%; вище — яскравіше, до подвійної інтенсивності.
     var regionHighlight: Double {
-        get { defaults.object(forKey: "regionHighlight") as? Double ?? 1.0 }
-        set { defaults.set(newValue, forKey: "regionHighlight") }
+        get {
+            if let v = defaults.object(forKey: "regionHighlight2") as? Double { return v }
+            // Перенесення зі старої шкали, де 100% було максимумом.
+            if let old = defaults.object(forKey: "regionHighlight") as? Double { return old / 2 }
+            return 0.5
+        }
+        set { defaults.set(newValue, forKey: "regionHighlight2") }
     }
 
     /// Ім'я користувача та його варіанти через кому — для сповіщень у авто-режимі.

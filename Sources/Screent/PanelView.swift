@@ -321,6 +321,16 @@ private struct SettingsStrip: View {
                                                  : "Turn on Translation to choose a language")
                 Spacer()
             }
+            HStack(spacing: 10) {
+                Text("Model")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 92, alignment: .leading)
+                Segmented(options: [("sonnet", "Sonnet"), ("haiku", "Haiku"), ("opus", "Opus")],
+                          selection: Binding(get: { model.selectedModel }, set: { model.onSelectModel($0) }))
+                    .help("Sonnet — balanced · Haiku — fastest · Opus — most accurate. Switches right away, context is kept.")
+                Spacer()
+            }
             SliderRow(title: "Text size", value: $model.textSize, range: 0...1)
             SliderRow(title: "Background", value: $model.panelOpacity, range: 0.1...1)
             SliderRow(title: "Region highlight", value: $model.regionHighlight, range: 0...1)
@@ -376,6 +386,41 @@ private struct SliderRow: View {
                 .foregroundStyle(.white.opacity(0.45))
                 .frame(width: 34, alignment: .trailing)
         }
+    }
+}
+
+/// Сегментований перемикач у стилі панелі.
+private struct Segmented<T: Hashable>: View {
+    let options: [(T, String)]
+    @Binding var selection: T
+    @Namespace private var ns
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.0) { value, title in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) { selection = value }
+                } label: {
+                    Text(title)
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 10)
+                        .frame(height: 22)
+                        .foregroundStyle(selection == value ? Color.black.opacity(0.85) : .white.opacity(0.55))
+                        .background {
+                            if selection == value {
+                                Capsule().fill(Theme.accent).matchedGeometryEffect(id: "seg", in: ns)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(Capsule().fill(.white.opacity(0.06)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.06), lineWidth: 1))
     }
 }
 
