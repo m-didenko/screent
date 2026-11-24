@@ -1,5 +1,14 @@
 import SwiftUI
 
+enum EntryKind: Equatable {
+    /// Оригінал + український переклад.
+    case translation
+    /// Англійський режим: лише розпізнаний текст.
+    case caption
+    /// AI-підказка: TIP / EN / UA.
+    case hint
+}
+
 struct Entry: Identifiable, Equatable {
     let id = UUID()
     var original: String
@@ -7,6 +16,7 @@ struct Entry: Identifiable, Equatable {
     var isStreaming: Bool
     /// Пояснення абревіатур і здогадки щодо помилок розпізнавання.
     var notes: [String] = []
+    var kind: EntryKind = .translation
     let date = Date()
 }
 
@@ -39,6 +49,12 @@ final class AppModel: ObservableObject {
     @Published var paused = false
     @Published var showSettings = false
     @Published var mention: MentionAlert?
+    @Published var translateEnabled = AppSettings.shared.translateEnabled {
+        didSet { AppSettings.shared.translateEnabled = translateEnabled }
+    }
+    @Published var hintsEnabled = AppSettings.shared.hintsEnabled {
+        didSet { AppSettings.shared.hintsEnabled = hintsEnabled }
+    }
     @Published var myNames = AppSettings.shared.myNames {
         didSet { AppSettings.shared.myNames = myNames }
     }
@@ -58,6 +74,7 @@ final class AppModel: ObservableObject {
     var onRegionHighlight: (Double) -> Void = { _ in }
     var onQuit: () -> Void = {}
     var onDismissMention: () -> Void = {}
+    var onHint: () -> Void = {}
 
     private var noticeTask: Task<Void, Never>?
 
@@ -76,4 +93,5 @@ enum Theme {
     static let accentNS = NSColor(red: 1.0, green: 0.74, blue: 0.33, alpha: 1)
     static let danger = Color(red: 1.0, green: 0.42, blue: 0.40)
     static let ok = Color(red: 0.30, green: 0.85, blue: 0.48)
+    static let hint = Color(red: 0.58, green: 0.66, blue: 1.0)
 }

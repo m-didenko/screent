@@ -12,6 +12,8 @@ region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only 
   - **Auto:** translates whenever the text changes.
 - **Context-aware.** The whole session is a single Claude Code conversation, so names, terminology and style stay consistent, and translation quality improves as the meeting goes on.
 - **Handles bad speech-to-text.** Claude reconstructs what the speaker most likely meant instead of translating misheard words literally.
+- **AI hints.** In meetings about software, Claude suggests one thing you could say right now: a concrete solution, a sharp question, a risk nobody mentioned, or a light witty remark. You get the phrase in English plus its Ukrainian translation.
+- **English mode.** Turn translation off to see the recognized English text as is, with hints in English only.
 - **Name alerts (auto mode).** When someone says your name in the meeting, Screent plays a sound. It also shows a short summary: who addressed you, what they asked, and a hint on what to answer.
 - **Explains jargon.** Acronyms and terms get a short note (ⓘ) the first time they appear. So do guesses about misrecognized words.
 - **Sends only new text.** Captions scroll, so each new frame mostly repeats the previous one. Screent diffs frames and sends only the new words. A sentence that was cut off is re-translated as a whole.
@@ -93,6 +95,7 @@ tail -f ~/Library/Logs/Screent.log
 | ⌥Space | Translate now |
 | ⌥⇧Space | Switch mode: button ↔ auto |
 | ⌥⇧P | Pause / resume |
+| ⌥⇧I | AI hint now |
 | ⌥⇧R | Select region |
 | ⌥⇧H | Show / hide panel |
 
@@ -110,6 +113,7 @@ tail -f ~/Library/Logs/Screent.log
 **Settings section** (opens under the header):
 - **Panel background:** opacity of the glass background, 10–100%, default 100%. The text stays sharp and gets a soft shadow when the background is very transparent.
 - **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
+- **Features:** **Translation** and **Hints** toggle independently. See [Translation, English mode and AI hints](#translation-english-mode-and-ai-hints).
 - **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
 - **Original**, **Quit**.
 
@@ -124,6 +128,27 @@ tail -f ~/Library/Logs/Screent.log
 | Show original | Shows or hides the English text above each translation |
 
 > The interface is currently in Ukrainian. The translation target language is set in the system prompt in `Sources/Screent/ClaudeBridge.swift`.
+
+## Translation, English mode and AI hints
+
+Under **Features** in settings, switch **Translation** and **Hints** on or off in any combination:
+
+| Translation | Hints | What you get |
+|---|---|---|
+| on | off | Ukrainian translation of the captions, with notes on jargon (default) |
+| on | on | Translation, plus hint cards: the tip in Ukrainian, then the phrase in English **and** in Ukrainian |
+| off | on | **English mode.** The recognized English text, plus hint cards fully in English. Mention cards are in English too. |
+| off | off | English mode, captions only |
+
+**Hints:**
+- **Automatic (auto mode):** a hint is requested after roughly 60 new words of conversation, at most every 45 s, once the speaker pauses.
+- **On demand:** the 💡 **Hint** button in the panel, or **⌥⇧I**.
+- **Hint card:**
+  - **TIP:** what is being discussed and why the suggestion helps;
+  - **EN:** a ready-to-say phrase. Copy it with the copy button;
+  - **UA:** its translation (translation on only).
+- **Nothing to add:** if there is nothing worth saying (small talk, too little context), Claude skips the hint and no card appears.
+- **Context:** hints use the same Claude session, so they know the whole meeting so far. In English mode no translation requests are made, and the hint request carries the captions since the previous hint.
 
 ## Name alerts
 

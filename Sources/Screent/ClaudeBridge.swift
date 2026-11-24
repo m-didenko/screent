@@ -52,6 +52,21 @@ enum TranslatorPrompt {
     2. If it is a question or request, a one-line hint of what the user could answer, starting with "→ ".
     The captions are noisy speech-to-text: infer the most plausible meaning. If the name only came up in \
     passing and nothing is expected from the user, say so in one line.
+    If the MENTION line says "LANGUAGE: English", write the reply in English instead of Ukrainian.
+
+    "HINT" messages: you are also the user's discreet assistant in this meeting. The meetings are usually \
+    about software and its development. The message contains the captions since the last hint (the \
+    user may not have asked for translations, so these captions can be your only source; combine them \
+    with everything earlier in the conversation). Suggest ONE thing the user could say right now that \
+    adds real value: a concrete solution or approach to the problem being discussed, a sharp clarifying \
+    question, a risk or edge case nobody mentioned, a next step — or, when the mood is light, a short \
+    friendly witty remark. Be specific to what was actually said; no generic advice. Format exactly:
+    TIP: <one or two short lines: what is being discussed and why your suggestion helps>
+    EN: <the phrase to say out loud, in natural spoken English, 1–2 sentences>
+    UA: <the same phrase translated into Ukrainian>
+    Language: TIP in Ukrainian. If the HINT line says "LANGUAGE: English", write TIP in English and omit the UA line.
+    If there is nothing worth adding (small talk, too little context, the topic is closed), output exactly: TIP: —
+    Hints are never part of the translation: do not mention them in later translations.
     """
 }
 

@@ -44,12 +44,24 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var paused = false
 
     // Згадки імені (лише авто-режим)
-    private enum TurnKind { case translation, mention }
+    private enum TurnKind { case translation, mention, hint }
     private var turnKind = TurnKind.translation
     private var lastScanned = ""
     private var recentCaptions = ""
     private var lastMentionAt: Date?
     private var mentionPending = false
+
+    // AI-підказки
+    private var captionsSinceHint = ""
+    private var wordsSinceHint = 0
+    private var lastHintAt: Date?
+    private var hintPending = false
+    private var hintIndex: Int?
+    private static let autoHintWords = 60
+    private static let autoHintInterval: TimeInterval = 45
+
+    /// Англійський режим: без перекладу, підказки й контекст — англійською.
+    private var english: Bool { !settings.translateEnabled }
 
     // MARK: - Запуск
 
@@ -63,6 +75,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onRegionHighlight = { [weak self] in self?.frameWindow.setHighlight($0) }
         model.onQuit = { NSApp.terminate(nil) }
         model.onDismissMention = { [weak self] in self?.model.mention = nil }
+        model.onHint = { [weak self] in self?.hintNow() }
         frameWindow.setHighlight(settings.regionHighlight)
 
         panel = TranslationPanel(model: model)
@@ -102,6 +115,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hk.register(id: 5, keyCode: kVK_ANSI_P, modifiers: optionKey | shiftKey) { [weak self] in
             MainActor.assumeIsolated { self?.togglePause() }
         }
+        hk.register(id: 6, keyCode: kVK_ANSI_I, modifiers: optionKey | shiftKey) { [weak self] in
+            MainActor.assumeIsolated { self?.hintNow() }
+        }
         hk.register(id: 4, keyCode: kVK_ANSI_H, modifiers: optionKey | shiftKey) { [weak self] in
             MainActor.assumeIsolated { self?.togglePanel() }
         }
@@ -122,6 +138,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lastScanned = ""
         recentCaptions = ""
         model.mention = nil
+        captionsSinceHint = ""
+        wordsSinceHint = 0
+        lastHintAt = nil
+        hintPending = false
+        hintIndex = nil
         do {
             try bridge.start(model: settings.model)
             restoreStatus()
@@ -138,7 +159,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         busy = false
         turnKind = .translation
         mentionPending = false
+        hintPending = false
         model.mention?.isStreaming = false
+        if let i = hintIndex, model.entries.indices.contains(i) { model.entries[i].isStreaming = false }
+        hintIndex = nil
         model.status = .error("Claude Code зупинився: \(reason)")
     }
 
@@ -178,7 +202,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setPaused(_ value: Bool) {
         paused = value
         model.paused = value
-        if value { pending = false }
+        if value { pending = false; hintPending = false }
         frameWindow.setActive(settings.mode == .auto && !value)
         frameWindow.setPaused(value)
         restoreStatus()
@@ -197,6 +221,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { await runCapture(region: region, manual: true) }
     }
 
+    /// Підказка просто зараз: свіжий знімок → підказка.
+    private func hintNow() {
+        guard settings.hintsEnabled else { model.flash("Увімкніть підказки в налаштуваннях"); return }
+        if paused { model.flash("Пауза — натисніть ▶︎ або ⌥⇧P"); return }
+        guard let region = settings.region else { selectRegion(); return }
+        if busy || capturing {
+            hintPending = true
+            model.flash("Підказка — одразу після поточної відповіді")
+            return
+        }
+        Task { await runCapture(region: region, manual: true, forHint: true) }
+    }
+
     private func autoPoll() {
         guard !paused, !capturing, !selector.isActive, let region = settings.region else { return }
         // Без дозволу не смикаємо систему щотакту — повторюємо раз на 5 с.
@@ -204,7 +241,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { await runCapture(region: region, manual: false) }
     }
 
-    private func runCapture(region: CGRect, manual: Bool) async {
+    private func runCapture(region: CGRect, manual: Bool, forHint: Bool = false) async {
         capturing = true
         defer { capturing = false }
         if manual {
@@ -216,7 +253,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let text = try await OCR.recognize(image).joined(separator: "\n")
             permissionBlockedAt = nil
             if case .error = model.status { restoreStatus() }
-            if manual { handleManual(text) } else { handleAuto(text) }
+            if forHint {
+                ingest(text)
+                requestHint(auto: false)
+                if !busy { restoreStatus() }
+            } else if manual { handleManual(text) } else { handleAuto(text) }
         } catch {
             if case CaptureError.permission = error { permissionBlockedAt = Date() }
             model.status = .error(error.localizedDescription)
@@ -224,6 +265,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func handleManual(_ text: String) {
+        ingest(text)
         let diff = TextDiffer.diff(previous: lastSentText, current: text)
         guard !diff.isEmpty else {
             restoreStatus()
@@ -235,10 +277,18 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Авто: надсилаємо, коли текст «устоявся» (не змінювався один такт) або накопичилося багато нових слів.
     private func handleAuto(_ text: String) {
-        scanForMention(text)
+        ingest(text)
         let norm = TextDiffer.normalized(text)
         if norm == lastPolled { stableTicks += 1 } else { stableTicks = 0; lastPolled = norm }
         guard !busy, !paused, settings.mode == .auto else { return }
+
+        // Авто-підказка: назбиралося достатньо нового тексту, розмова «видихнула» і минуло досить часу.
+        if settings.hintsEnabled, stableTicks >= 1, wordsSinceHint >= Self.autoHintWords,
+           lastHintAt.map({ Date().timeIntervalSince($0) >= Self.autoHintInterval }) ?? true {
+            requestHint(auto: true)
+            return
+        }
+
         let diff = TextDiffer.diff(previous: lastSentText, current: text)
         guard !diff.isEmpty, stableTicks >= 1 || diff.wordCount >= 24 else { return }
         frameWindow.flash()
@@ -247,16 +297,22 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Згадка імені
 
-    /// Кожен такт авто-режиму шукаємо ім'я користувача в нових рядках субтитрів.
-    private func scanForMention(_ text: String) {
+    /// Кожен знімок: накопичуємо нові рядки субтитрів (для згадок і підказок) і шукаємо ім'я.
+    private func ingest(_ text: String) {
         let diff = TextDiffer.diff(previous: lastScanned, current: text)
         lastScanned = text
         guard !diff.isEmpty else { return }
         recentCaptions = String((recentCaptions + "\n" + diff.text).suffix(1500))
+        captionsSinceHint = String((captionsSinceHint + "\n" + diff.text).suffix(3000))
+        wordsSinceHint += diff.wordCount
+        checkMention(diff.text)
+    }
 
+    /// Лише авто-режим: шукаємо ім'я користувача в нових рядках.
+    private func checkMention(_ newText: String) {
         let names = MentionDetector.parse(settings.myNames)
         guard settings.mode == .auto, !paused,
-              let line = MentionDetector.findMention(in: diff.text, names: names) else { return }
+              let line = MentionDetector.findMention(in: newText, names: names) else { return }
         guard canAlert() else { return }
         showMentionAlert(snippet: line, context: "", source: "local")
         if busy { mentionPending = true } else { sendMention() }
@@ -285,7 +341,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         let message = """
-        MENTION:
+        MENTION:\(english ? " (LANGUAGE: English)" : "")
         The user's name (\(settings.myNames)) was just said in the meeting, in this line:
         «\(model.mention?.snippet ?? "")»
 
@@ -312,8 +368,16 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
+        if english {
+            addCaption(diff)
+            lastSentText = fullText
+            restoreStatus()
+            return
+        }
+
         let message: String
-        if diff.continues, let i = model.entries.indices.last, !model.entries[i].isStreaming {
+        if diff.continues, let i = model.entries.indices.last, model.entries[i].kind == .translation,
+           !model.entries[i].isStreaming {
             // Незавершене речення наприкінці перекладу Claude перекладе заново цілком.
             let old = model.entries[i].translation
             let kept = Self.unfinishedSentenceStart(in: old)
@@ -345,6 +409,58 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Англійський режим: розпізнаний текст іде в стрічку як є, без Claude.
+    private func addCaption(_ diff: TextDiff) {
+        if diff.continues, let i = model.entries.indices.last, model.entries[i].kind == .caption {
+            model.entries[i].original += " " + diff.text
+        } else {
+            model.entries.append(Entry(original: diff.text, translation: "", isStreaming: false, kind: .caption))
+        }
+    }
+
+    // MARK: - Підказки
+
+    private func requestHint(auto: Bool) {
+        guard settings.hintsEnabled else { return }
+        if busy { hintPending = true; return }
+        hintPending = false
+        let captions = captionsSinceHint.trimmingCharacters(in: .whitespacesAndNewlines)
+        if auto && captions.isEmpty { return }
+        if !bridge.isRunning {
+            do { try bridge.start(model: settings.model) } catch {
+                model.status = .error(error.localizedDescription)
+                return
+            }
+        }
+        let message = """
+        HINT (\(auto ? "automatic" : "requested by the user")\(english ? ", LANGUAGE: English" : "")):
+        New captions since the last hint:
+        \(captions.isEmpty ? "(none — use the conversation so far)" : captions)
+        """
+        model.entries.append(Entry(original: "", translation: "", isStreaming: true, kind: .hint))
+        hintIndex = model.entries.count - 1
+        captionsSinceHint = ""
+        wordsSinceHint = 0
+        lastHintAt = Date()
+        do {
+            try bridge.send(message)
+            turnKind = .hint
+            busy = true
+            model.status = .working
+        } catch {
+            model.entries.removeLast()
+            hintIndex = nil
+            model.status = .error(error.localizedDescription)
+        }
+    }
+
+    /// Після кожної відповіді: спершу згадка, потім підказка, потім відкладений переклад.
+    private func drainQueue() {
+        if mentionPending { sendMention() }
+        else if hintPending { requestHint(auto: false) }
+        else if pending { pending = false; translateNow() }
+    }
+
     /// В авто-режимі повідомляємо Claude ім'я користувача, щоб він теж помічав звернення.
     private func userHeader() -> String {
         let names = settings.myNames.trimmingCharacters(in: .whitespaces)
@@ -364,6 +480,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func appendDelta(_ text: String) {
         if turnKind == .mention {
             model.mention?.context += text
+            return
+        }
+        if turnKind == .hint {
+            if let i = hintIndex, model.entries.indices.contains(i) { model.entries[i].translation += text }
             return
         }
         guard var t = target, model.entries.indices.contains(t.index) else { return }
@@ -414,7 +534,23 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             model.mention?.isStreaming = false
             if isError { model.mention?.context = message ?? "Помилка Claude Code" }
             restoreStatus()
-            if pending { pending = false; translateNow() }
+            drainQueue()
+            return
+        }
+        if turnKind == .hint {
+            turnKind = .translation
+            if let i = hintIndex, model.entries.indices.contains(i) {
+                model.entries[i].isStreaming = false
+                let hint = Hint.parse(model.entries[i].translation)
+                if isError {
+                    model.entries[i].translation = "TIP: " + (message ?? "Помилка Claude Code")
+                } else if hint.isEmpty {
+                    model.entries.remove(at: i) // Claude вирішив, що додати нічого
+                }
+            }
+            hintIndex = nil
+            restoreStatus()
+            drainQueue()
             return
         }
         if let t = target, model.entries.indices.contains(t.index) {
@@ -439,12 +575,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             restoreStatus()
         }
 
-        if mentionPending {
-            sendMention()
-        } else if pending {
-            pending = false
-            translateNow()
-        }
+        drainQueue()
     }
 
     // MARK: - Область і панель
@@ -573,6 +704,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var md = "# Screent — стенограма\n\n"
         for e in model.entries {
             md += "**\(time.string(from: e.date))**\n\n"
+            if e.kind == .hint {
+                let h = Hint.parse(e.translation)
+                md += "💡 \(h.tip)\n\n"
+                if !h.en.isEmpty { md += "> **EN:** \(h.en)\n" }
+                if !h.ua.isEmpty { md += "> **UA:** \(h.ua)\n" }
+                md += "\n---\n\n"
+                continue
+            }
             md += e.original.split(separator: "\n").map { "> \($0)" }.joined(separator: "\n") + "\n\n"
             md += e.translation.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n"
             for n in e.notes { md += "- ⓘ \(n)\n" }

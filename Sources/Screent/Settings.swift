@@ -49,6 +49,18 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "myNames") }
     }
 
+    /// Перекладати українською. Вимкнено — англійський режим: стрічка й підказки англійською.
+    var translateEnabled: Bool {
+        get { defaults.object(forKey: "translateEnabled") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "translateEnabled") }
+    }
+
+    /// AI-підказки: що сказати на мітингу.
+    var hintsEnabled: Bool {
+        get { defaults.object(forKey: "hintsEnabled") as? Bool ?? false }
+        set { defaults.set(newValue, forKey: "hintsEnabled") }
+    }
+
     /// Область захоплення в глобальних координатах AppKit (початок — лівий нижній кут).
     var region: CGRect? {
         get {

@@ -20,16 +20,38 @@ final class TranslationPanel: NSPanel {
         minSize = NSSize(width: 400, height: 180)
         appearance = NSAppearance(named: .darkAqua)
 
-        contentView = FirstMouseHostingView(rootView: PanelView().environmentObject(model))
+        let host = FirstMouseHostingView(rootView: PanelView().environmentObject(model))
+        // Розмір вікна задає користувач, а не вміст: інакше довга стрічка розтягує вікно за межі екрана.
+        host.sizingOptions = []
+        contentView = host
 
         if !setFrameUsingName("ScreentPanel"), let screen = NSScreen.main {
             let v = screen.visibleFrame
             setFrameOrigin(NSPoint(x: v.maxX - frame.width - 24, y: v.minY + 24))
         }
         setFrameAutosaveName("ScreentPanel")
+        setFrame(frame, display: false) // застосувати обмеження до збереженого розміру
     }
 
     override var canBecomeKey: Bool { true }
+
+    /// Вікно ніколи не більше за видиму частину екрана і не виходить за її межі.
+    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        super.setFrame(clamped(frameRect), display: flag)
+    }
+
+    private func clamped(_ rect: NSRect) -> NSRect {
+        let screen = NSScreen.screens.first(where: { $0.frame.intersects(rect) }) ?? screen ?? NSScreen.main
+        guard let v = screen?.visibleFrame else { return rect }
+        var r = rect
+        r.size.width = min(max(r.width, minSize.width), v.width)
+        r.size.height = min(max(r.height, minSize.height), v.height)
+        if r.maxY > v.maxY { r.origin.y = v.maxY - r.height }
+        if r.minY < v.minY { r.origin.y = v.minY }
+        if r.maxX > v.maxX { r.origin.x = v.maxX - r.width }
+        if r.minX < v.minX { r.origin.x = v.minX }
+        return r
+    }
 }
 
 private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
@@ -228,6 +250,19 @@ private struct SettingsStrip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Text("Функції")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 92, alignment: .leading)
+                FeatureChip(title: "Переклад", symbol: "character.bubble", color: Theme.accent,
+                            isOn: $model.translateEnabled)
+                    .help("Вимкнено — англійський режим: текст і підказки англійською")
+                FeatureChip(title: "Підказки", symbol: "lightbulb", color: Theme.hint,
+                            isOn: $model.hintsEnabled)
+                    .help("AI радить, що сказати на мітингу (англійською + переклад)")
+                Spacer()
+            }
             SliderRow(title: "Фон панелі", value: $model.panelOpacity, range: 0.1...1)
             SliderRow(title: "Підсвітка зони", value: $model.regionHighlight, range: 0...1)
             HStack(spacing: 10) {
@@ -285,6 +320,27 @@ private struct SliderRow: View {
     }
 }
 
+private struct FeatureChip: View {
+    let title: String
+    let symbol: String
+    let color: Color
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button { withAnimation(.easeOut(duration: 0.15)) { isOn.toggle() } } label: {
+            Label(title, systemImage: isOn ? symbol + ".fill" : symbol)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isOn ? color : .white.opacity(0.5))
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(Capsule().fill(isOn ? color.opacity(0.15) : .white.opacity(0.05)))
+                .overlay(Capsule().strokeBorder(isOn ? color.opacity(0.4) : .white.opacity(0.1), lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressStyle())
+    }
+}
+
 private struct PillButton: View {
     let title: String
     let symbol: String
@@ -307,6 +363,66 @@ private struct PillButton: View {
         .buttonStyle(PressStyle())
         .onHover { hover = $0 }
         .animation(.easeOut(duration: 0.15), value: hover)
+    }
+}
+
+// MARK: - Підказка
+
+private struct HintCard: View {
+    let entry: Entry
+    let isLatest: Bool
+    @State private var copied = false
+
+    var body: some View {
+        let hint = Hint.parse(entry.translation)
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: "lightbulb.fill").font(.system(size: 10))
+                Text(entry.isStreaming && entry.translation.isEmpty ? "ДУМАЮ…" : "ПІДКАЗКА")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .tracking(1.6)
+                Spacer()
+                if !hint.en.isEmpty && !entry.isStreaming {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(hint.en, forType: .string)
+                        copied = true
+                    } label: {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Скопіювати англійську фразу")
+                }
+            }
+            .foregroundStyle(Theme.hint)
+
+            if !hint.tip.isEmpty {
+                Text(hint.tip)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !hint.en.isEmpty {
+                (Text(hint.en) + (entry.isStreaming && hint.ua.isEmpty ? Text(" ▍").foregroundColor(Theme.hint) : Text("")))
+                    .font(.system(size: 15, weight: .medium))
+                    .lineSpacing(3)
+                    .foregroundStyle(.white.opacity(0.95))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !hint.ua.isEmpty {
+                Text(hint.ua)
+                    .font(.system(size: 12.5))
+                    .lineSpacing(2)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .textSelection(.enabled)
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.hint.opacity(0.09)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.hint.opacity(0.28), lineWidth: 1))
+        .opacity(isLatest ? 1 : 0.7)
+        .animation(.easeOut(duration: 0.25), value: isLatest)
     }
 }
 
@@ -378,7 +494,8 @@ private struct Feed: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
+                // Звичайний VStack: висоти відомі точно, тож прокрутка до низу не «недолітає».
+                VStack(alignment: .leading, spacing: 18) {
                     ForEach(model.entries) { entry in
                         EntryView(entry: entry,
                                   isLatest: entry.id == model.entries.last?.id,
@@ -390,10 +507,20 @@ private struct Feed: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
             }
-            .scrollIndicators(.never)
-            .onChange(of: model.entries) { _, _ in
+            .scrollIndicators(.automatic)
+            .defaultScrollAnchor(.bottom)
+            // Новий запис — плавно вниз; потік тексту в останньому записі — миттєво, без смикання.
+            .onChange(of: model.entries.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom", anchor: .bottom) }
             }
+            .onChange(of: model.entries.last) { _, _ in
+                proxy.scrollTo("bottom", anchor: .bottom)
+            }
+            .onChange(of: model.showOriginal) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+            .onChange(of: model.mention?.id) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+            .background(GeometryReader { geo in
+                Color.clear.onChange(of: geo.size) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+            })
             .onAppear { proxy.scrollTo("bottom", anchor: .bottom) }
         }
     }
@@ -405,6 +532,23 @@ private struct EntryView: View {
     let showOriginal: Bool
 
     var body: some View {
+        switch entry.kind {
+        case .hint:
+            HintCard(entry: entry, isLatest: isLatest)
+        case .caption:
+            Text(entry.original)
+                .font(.system(size: 15))
+                .lineSpacing(3.5)
+                .foregroundStyle(.white.opacity(0.94))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(isLatest ? 1 : 0.55)
+        case .translation:
+            translationBody
+        }
+    }
+
+    private var translationBody: some View {
         VStack(alignment: .leading, spacing: 6) {
             if showOriginal {
                 Text(entry.original)
@@ -524,9 +668,14 @@ private struct Footer: View {
     private var hint: (String, Color) {
         if case .error(let message) = model.status { return (message, Theme.danger) }
         if let notice = model.notice { return (notice, .white.opacity(0.7)) }
-        return model.mode == .auto
-            ? ("Переклад з'являється, щойно текст зміниться", .white.opacity(0.38))
-            : ("⌥Space — перекласти  ·  ⌥⇧P — пауза", .white.opacity(0.38))
+        let what = model.translateEnabled ? "Переклад" : "Текст"
+        if model.mode == .auto {
+            return (model.hintsEnabled ? "\(what) і підказки з'являються під час розмови"
+                                       : "\(what) з'являється, щойно текст зміниться", .white.opacity(0.38))
+        }
+        return (model.hintsEnabled ? "⌥Space — \(model.translateEnabled ? "переклад" : "текст")  ·  ⌥⇧I — підказка"
+                                   : "⌥Space — \(model.translateEnabled ? "перекласти" : "захопити")  ·  ⌥⇧P — пауза",
+                .white.opacity(0.38))
     }
 
     var body: some View {
@@ -537,10 +686,29 @@ private struct Footer: View {
                 .lineLimit(2)
                 .help(hint.0)
             Spacer(minLength: 8)
+            if model.hintsEnabled {
+                Button(action: model.onHint) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lightbulb.fill").font(.system(size: 10))
+                        Text("Підказка").font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.hint)
+                    .padding(.horizontal, 12)
+                    .frame(height: 30)
+                    .background(Capsule().fill(Theme.hint.opacity(0.12)))
+                    .overlay(Capsule().strokeBorder(Theme.hint.opacity(0.3), lineWidth: 1))
+                }
+                .buttonStyle(PressStyle())
+                .help("Підказка: що сказати зараз (⌥⇧I)")
+                .disabled(!model.hasRegion || model.paused)
+                .opacity(model.hasRegion && !model.paused ? 1 : 0.4)
+            }
             if model.mode == .manual {
                 Button(action: model.onTranslate) {
                     HStack(spacing: 8) {
-                        Text(model.status == .working ? "Перекладаю" : "Перекласти")
+                        Text(model.translateEnabled
+                             ? (model.status == .working ? "Перекладаю" : "Перекласти")
+                             : "Захопити")
                             .font(.system(size: 12, weight: .semibold))
                         Text("⌥␣")
                             .font(.system(size: 10, weight: .medium, design: .monospaced))
