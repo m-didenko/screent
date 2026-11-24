@@ -38,6 +38,20 @@ enum TranslatorPrompt {
     - No notes when there is nothing to explain. Never put notes in the middle of the translation.
 
     If there is nothing meaningful to translate, output exactly: …
+
+    A message may start with "USER NAME: <names>": the person you translate for. Speech-to-text often \
+    mangles that name (e.g. Mykyta → Mikita, Nikita, My kita). If the new text addresses the user, asks \
+    them something or talks about them, add ONE final line after the translation and notes, starting with \
+    "🔔 ", in Ukrainian: who addressed the user and what they want; for a question or request add \
+    " → " and a short hint of what to answer. Do not add it when the user is not mentioned.
+
+    "MENTION:" messages are different: the user's name was just said in the meeting and they may have \
+    missed it. Using the quoted line, the recent captions and the whole conversation, reply in Ukrainian \
+    in at most 3 short lines, no notes, no translation:
+    1. Who addressed the user and what they asked, want or said about them, as concretely as possible.
+    2. If it is a question or request, a one-line hint of what the user could answer, starting with "→ ".
+    The captions are noisy speech-to-text: infer the most plausible meaning. If the name only came up in \
+    passing and nothing is expected from the user, say so in one line.
     """
 }
 

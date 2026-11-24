@@ -43,6 +43,12 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "regionHighlight") }
     }
 
+    /// Ім'я користувача та його варіанти через кому — для сповіщень у авто-режимі.
+    var myNames: String {
+        get { defaults.string(forKey: "myNames") ?? "" }
+        set { defaults.set(newValue, forKey: "myNames") }
+    }
+
     /// Область захоплення в глобальних координатах AppKit (початок — лівий нижній кут).
     var region: CGRect? {
         get {

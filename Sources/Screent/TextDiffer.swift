@@ -93,7 +93,7 @@ enum TextDiffer {
         return levenshtein(Array(a), Array(b)) <= 1
     }
 
-    private static func levenshtein(_ a: [Character], _ b: [Character]) -> Int {
+    static func levenshtein(_ a: [Character], _ b: [Character]) -> Int {
         var prev = Array(0...b.count)
         for i in 1...a.count {
             var cur = [i] + Array(repeating: 0, count: b.count)

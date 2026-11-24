@@ -12,6 +12,7 @@ region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only 
   - **Auto:** translates whenever the text changes.
 - **Context-aware.** The whole session is a single Claude Code conversation, so names, terminology and style stay consistent, and translation quality improves as the meeting goes on.
 - **Handles bad speech-to-text.** Claude reconstructs what the speaker most likely meant instead of translating misheard words literally.
+- **Name alerts (auto mode).** When someone says your name in the meeting, Screent plays a sound. It also shows a short summary: who addressed you, what they asked, and a hint on what to answer.
 - **Explains jargon.** Acronyms and terms get a short note (ⓘ) the first time they appear. So do guesses about misrecognized words.
 - **Sends only new text.** Captions scroll, so each new frame mostly repeats the previous one. Screent diffs frames and sends only the new words. A sentence that was cut off is re-translated as a whole.
 - **Minimal UI.** It lives in the menu bar and shows a translucent panel that stays on top. A faint highlight marks the captured region. Screent's own windows are never captured, so the panel can even sit on top of the region.
@@ -108,6 +109,7 @@ tail -f ~/Library/Logs/Screent.log
 **Settings section** (opens under the header):
 - **Panel background:** opacity of the glass background, 10–100%. The text stays sharp and gets a soft shadow when the background is very transparent.
 - **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%. It never affects OCR.
+- **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
 - **Original**, **New session**, **Quit**.
 
 **Menu bar menu:**
@@ -121,6 +123,17 @@ tail -f ~/Library/Logs/Screent.log
 | Show original | Shows or hides the English text above each translation |
 
 > The interface is currently in Ukrainian. The translation target language is set in the system prompt in `Sources/Screent/ClaudeBridge.swift`.
+
+## Name alerts
+
+Name alerts work in **auto mode** only, because the region has to be watched continuously.
+
+1. Open settings (sliders icon) and fill in **My name** with your name and the ways speech-to-text tends to spell it, e.g. `Nick, Nik, Нік`. Matching is phonetic: `Mykyta` also catches `Mikita`, `Mykita` and `Микита`, and `Nick` catches `Nic`, `Nik`, `Нік` and `Nick's`. As a backup, Claude knows your name in auto mode. If it sees you were addressed under a spelling the local matcher missed (e.g. `Nikita`), it raises the alert itself.
+2. When your name appears in the captions, Screent:
+   - plays a sound and flashes the region frame;
+   - brings the panel to the front and shows a **"ВАС ЗГАДАЛИ" ("you were mentioned")** card with the line that mentioned you;
+   - asks Claude, in the same session and so with the full meeting context, who addressed you, what they want, and what you could answer (`→ …`).
+3. Close the card with ×. After an alert, Screent waits 20 s before alerting again, so it doesn't ring on every caption line.
 
 ## How it works
 

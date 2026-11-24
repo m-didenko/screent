@@ -26,6 +26,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let keptPrefix: String
         /// Сирий вивід Claude за цей хід.
         var raw = ""
+        /// Текст, надісланий на переклад (для картки згадки).
+        var source = ""
+        /// Claude у цьому ході позначив звернення до користувача рядком «🔔».
+        var bellShown = false
     }
 
     private var lastSentText = ""
@@ -39,6 +43,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var permissionBlockedAt: Date?
     private var paused = false
 
+    // Згадки імені (лише авто-режим)
+    private enum TurnKind { case translation, mention }
+    private var turnKind = TurnKind.translation
+    private var lastScanned = ""
+    private var recentCaptions = ""
+    private var lastMentionAt: Date?
+    private var mentionPending = false
+
     // MARK: - Запуск
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -50,6 +62,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onTogglePause = { [weak self] in self?.togglePause() }
         model.onRegionHighlight = { [weak self] in self?.frameWindow.setHighlight($0) }
         model.onQuit = { NSApp.terminate(nil) }
+        model.onDismissMention = { [weak self] in self?.model.mention = nil }
         frameWindow.setHighlight(settings.regionHighlight)
 
         panel = TranslationPanel(model: model)
@@ -103,6 +116,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         target = nil
         busy = false
         pending = false
+        turnKind = .translation
+        mentionPending = false
+        lastScanned = ""
+        recentCaptions = ""
+        model.mention = nil
         do {
             try bridge.start(model: settings.model)
             restoreStatus()
@@ -117,6 +135,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         target = nil
         busy = false
+        turnKind = .translation
+        mentionPending = false
+        model.mention?.isStreaming = false
         model.status = .error("Claude Code зупинився: \(reason)")
     }
 
@@ -209,6 +230,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Авто: надсилаємо, коли текст «устоявся» (не змінювався один такт) або накопичилося багато нових слів.
     private func handleAuto(_ text: String) {
+        scanForMention(text)
         let norm = TextDiffer.normalized(text)
         if norm == lastPolled { stableTicks += 1 } else { stableTicks = 0; lastPolled = norm }
         guard !busy, !paused, settings.mode == .auto else { return }
@@ -216,6 +238,63 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !diff.isEmpty, stableTicks >= 1 || diff.wordCount >= 24 else { return }
         frameWindow.flash()
         send(diff, fullText: text)
+    }
+
+    // MARK: - Згадка імені
+
+    /// Кожен такт авто-режиму шукаємо ім'я користувача в нових рядках субтитрів.
+    private func scanForMention(_ text: String) {
+        let diff = TextDiffer.diff(previous: lastScanned, current: text)
+        lastScanned = text
+        guard !diff.isEmpty else { return }
+        recentCaptions = String((recentCaptions + "\n" + diff.text).suffix(1500))
+
+        let names = MentionDetector.parse(settings.myNames)
+        guard settings.mode == .auto, !paused,
+              let line = MentionDetector.findMention(in: diff.text, names: names) else { return }
+        guard canAlert() else { return }
+        showMentionAlert(snippet: line, context: "", source: "local")
+        if busy { mentionPending = true } else { sendMention() }
+    }
+
+    private func canAlert() -> Bool {
+        if let last = lastMentionAt, Date().timeIntervalSince(last) < 20 { return false }
+        return true
+    }
+
+    private func showMentionAlert(snippet: String, context: String, source: String) {
+        lastMentionAt = Date()
+        NSSound(named: "Glass")?.play()
+        frameWindow.flash()
+        panel.orderFrontRegardless()
+        model.mention = MentionAlert(snippet: snippet, context: context, isStreaming: true)
+        Log.write("mention detected (\(source))")
+    }
+
+    private func sendMention() {
+        mentionPending = false
+        if !bridge.isRunning {
+            do { try bridge.start(model: settings.model) } catch {
+                model.mention?.isStreaming = false
+                return
+            }
+        }
+        let message = """
+        MENTION:
+        The user's name (\(settings.myNames)) was just said in the meeting, in this line:
+        «\(model.mention?.snippet ?? "")»
+
+        Recent captions, oldest first:
+        \(recentCaptions.trimmingCharacters(in: .whitespacesAndNewlines))
+        """
+        do {
+            try bridge.send(message)
+            turnKind = .mention
+            busy = true
+            model.status = .working
+        } catch {
+            model.mention?.isStreaming = false
+        }
     }
 
     // MARK: - Переклад
@@ -241,14 +320,15 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             model.entries[i].original += " " + diff.text
             model.entries[i].translation = prefix
             model.entries[i].isStreaming = true
-            message = "NEW (continues previous):\n" + diff.text
+            message = userHeader() + "NEW (continues previous):\n" + diff.text
                 + (tail.isEmpty ? "" : "\n\nUnfinished end of your previous translation (will be replaced):\n«\(tail)»")
         } else {
             model.entries.append(Entry(original: diff.text, translation: "", isStreaming: true))
             target = Target(index: model.entries.count - 1, appended: false,
                             baseTranslation: "", baseOriginal: "", baseNotes: [], keptPrefix: "")
-            message = "NEW:\n" + diff.text
+            message = userHeader() + "NEW:\n" + diff.text
         }
+        target?.source = diff.text
 
         do {
             try bridge.send(message)
@@ -258,6 +338,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } catch {
             turnEnded(isError: true, message: error.localizedDescription)
         }
+    }
+
+    /// В авто-режимі повідомляємо Claude ім'я користувача, щоб він теж помічав звернення.
+    private func userHeader() -> String {
+        let names = settings.myNames.trimmingCharacters(in: .whitespaces)
+        guard settings.mode == .auto, !names.isEmpty else { return "" }
+        return "USER NAME: \(names)\n"
     }
 
     /// Позиція, з якої починається останнє незавершене речення (після останнього . ! ? або переносу рядка).
@@ -270,21 +357,40 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func appendDelta(_ text: String) {
+        if turnKind == .mention {
+            model.mention?.context += text
+            return
+        }
         guard var t = target, model.entries.indices.contains(t.index) else { return }
         t.raw += text
         target = t
-        let (body, notes) = Self.split(t.raw)
+        let (body, notes, bell) = Self.split(t.raw)
         model.entries[t.index].translation = t.keptPrefix + body
         model.entries[t.index].notes = t.baseNotes + notes.filter { !t.baseNotes.contains($0) }
+
+        // Резерв: Claude розпізнав звернення, яке пропустив локальний пошук імені.
+        if let bell, !bell.isEmpty {
+            if t.bellShown {
+                model.mention?.context = bell
+            } else if canAlert() {
+                t.bellShown = true
+                target = t
+                let snippet = t.source.split(whereSeparator: \.isNewline).last.map(String.init) ?? t.source
+                showMentionAlert(snippet: String(snippet.suffix(160)), context: bell, source: "claude")
+            }
+        }
     }
 
-    /// Розділяє вивід Claude на переклад і рядки-пояснення, що починаються з «ⓘ».
-    static func split(_ raw: String) -> (body: String, notes: [String]) {
+    /// Розділяє вивід Claude на переклад, рядки-пояснення «ⓘ» і рядок звернення «🔔».
+    static func split(_ raw: String) -> (body: String, notes: [String], bell: String?) {
         var body: [String] = []
         var notes: [String] = []
+        var bell: String?
         for line in raw.components(separatedBy: "\n") {
             let t = line.trimmingCharacters(in: .whitespaces)
-            if t.hasPrefix("ⓘ") {
+            if t.hasPrefix("🔔") {
+                bell = t.dropFirst().trimmingCharacters(in: .whitespaces)
+            } else if t.hasPrefix("ⓘ") {
                 let note = t.dropFirst().trimmingCharacters(in: .whitespaces)
                 if !note.isEmpty { notes.append(note) }
             } else {
@@ -293,14 +399,23 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         var text = body.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         if text == "…" || text == "..." { text = "" }
-        return (text, notes)
+        return (text, notes, bell)
     }
 
     private func turnEnded(isError: Bool, message: String?) {
         busy = false
+        if turnKind == .mention {
+            turnKind = .translation
+            model.mention?.isStreaming = false
+            if isError { model.mention?.context = message ?? "Помилка Claude Code" }
+            restoreStatus()
+            if pending { pending = false; translateNow() }
+            return
+        }
         if let t = target, model.entries.indices.contains(t.index) {
             model.entries[t.index].isStreaming = false
-            let (body, notes) = Self.split(t.raw)
+            if t.bellShown { model.mention?.isStreaming = false }
+            let (body, notes, _) = Self.split(t.raw)
             if body.isEmpty && notes.isEmpty {
                 if t.appended {
                     model.entries[t.index].translation = t.baseTranslation
@@ -319,7 +434,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             restoreStatus()
         }
 
-        if pending {
+        if mentionPending {
+            sendMention()
+        } else if pending {
             pending = false
             translateNow()
         }

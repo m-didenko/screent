@@ -48,6 +48,12 @@ struct PanelView: View {
                 SettingsStrip()
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            if let mention = model.mention {
+                MentionBanner(mention: mention, onDismiss: model.onDismissMention)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
             Rectangle().fill(.white.opacity(0.07)).frame(height: 1)
             if model.entries.isEmpty { EmptyState() } else { Feed() }
             Footer()
@@ -62,6 +68,7 @@ struct PanelView: View {
         // На прозорому фоні тексту потрібна тінь, щоб читатися поверх будь-чого.
         .shadow(color: .black.opacity(0.6 * (1 - model.panelOpacity)), radius: 2)
         .animation(.easeOut(duration: 0.2), value: model.showSettings)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.mention?.id)
         .preferredColorScheme(.dark)
     }
 }
@@ -219,6 +226,26 @@ private struct SettingsStrip: View {
         VStack(alignment: .leading, spacing: 10) {
             SliderRow(title: "Фон панелі", value: $model.panelOpacity, range: 0.1...1)
             SliderRow(title: "Підсвітка зони", value: $model.regionHighlight, range: 0...1)
+            HStack(spacing: 10) {
+                Text("Моє ім'я")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 92, alignment: .leading)
+                TextField("", text: $model.myNames, prompt: Text("Nick, Nik, Нік").foregroundColor(.white.opacity(0.25)))
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.1), lineWidth: 1))
+                    .help("Варіанти імені через кому. В авто-режимі, коли вас згадають, пролунає звук і з'явиться контекст.")
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(model.myNames.trimmingCharacters(in: .whitespaces).isEmpty
+                                     ? .white.opacity(0.25) : Theme.accent)
+                    .frame(width: 34)
+                    .help("Сповіщення працюють лише в авто-режимі")
+            }
             HStack(spacing: 8) {
                 PillButton(title: "Оригінал", symbol: model.showOriginal ? "eye" : "eye.slash",
                            active: model.showOriginal, action: model.onToggleOriginal)
@@ -277,6 +304,66 @@ private struct PillButton: View {
         .buttonStyle(PressStyle())
         .onHover { hover = $0 }
         .animation(.easeOut(duration: 0.15), value: hover)
+    }
+}
+
+// MARK: - Згадка імені
+
+private struct MentionBanner: View {
+    let mention: MentionAlert
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "bell.badge.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.accent)
+                .symbolEffect(.bounce, value: mention.id)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text("ВАС ЗГАДАЛИ")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .tracking(1.6)
+                        .foregroundStyle(Theme.accent)
+                    Text(mention.date, style: .time)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+                Text("«\(mention.snippet)»")
+                    .font(.system(size: 11).italic())
+                    .foregroundStyle(.white.opacity(0.4))
+                    .lineLimit(2)
+                Group {
+                    if mention.context.isEmpty && mention.isStreaming {
+                        Text("Збираю контекст…").foregroundColor(.white.opacity(0.45))
+                    } else {
+                        Text(mention.context.trimmingCharacters(in: .whitespacesAndNewlines))
+                            + (mention.isStreaming ? Text(" ▍").foregroundColor(Theme.accent) : Text(""))
+                    }
+                }
+                .font(.system(size: 13))
+                .lineSpacing(2.5)
+                .foregroundStyle(.white.opacity(0.92))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            }
+            Spacer(minLength: 0)
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .frame(width: 20, height: 20)
+                    .background(Circle().fill(.white.opacity(0.06)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(PressStyle())
+            .help("Закрити")
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.accent.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(Theme.accent.opacity(0.35), lineWidth: 1))
     }
 }
 

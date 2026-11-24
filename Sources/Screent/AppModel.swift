@@ -10,6 +10,15 @@ struct Entry: Identifiable, Equatable {
     let date = Date()
 }
 
+/// Згадка імені користувача на мітингу + короткий контекст від Claude.
+struct MentionAlert: Equatable {
+    let id = UUID()
+    let snippet: String
+    var context: String
+    var isStreaming: Bool
+    let date = Date()
+}
+
 enum Status: Equatable {
     case idle
     case listening
@@ -29,6 +38,10 @@ final class AppModel: ObservableObject {
     @Published var notice: String?
     @Published var paused = false
     @Published var showSettings = false
+    @Published var mention: MentionAlert?
+    @Published var myNames = AppSettings.shared.myNames {
+        didSet { AppSettings.shared.myNames = myNames }
+    }
     @Published var panelOpacity = AppSettings.shared.panelOpacity {
         didSet { AppSettings.shared.panelOpacity = panelOpacity }
     }
@@ -44,6 +57,7 @@ final class AppModel: ObservableObject {
     var onTogglePause: () -> Void = {}
     var onRegionHighlight: (Double) -> Void = { _ in }
     var onQuit: () -> Void = {}
+    var onDismissMention: () -> Void = {}
 
     private var noticeTask: Task<Void, Never>?
 
