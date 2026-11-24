@@ -1,10 +1,19 @@
 #!/bin/zsh
-# Збирає Screent.app у ./build і (за бажання) запускає її.
+# Builds Screent.app into ./build.
+#   --universal  build for Apple Silicon + Intel (used for releases)
+#   --install    copy to /Applications
+#   --run        launch after building
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release
-BIN="$(swift build -c release --show-bin-path)/Screent"
+VERSION="$(cat VERSION)"
+ARCH_FLAGS=()
+if [[ " $* " == *" --universal "* ]]; then
+  ARCH_FLAGS=(--arch arm64 --arch x86_64)
+fi
+
+swift build -c release "${ARCH_FLAGS[@]}"
+BIN="$(swift build -c release "${ARCH_FLAGS[@]}" --show-bin-path)/Screent"
 APP="build/Screent.app"
 
 rm -rf "$APP"
@@ -21,8 +30,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Screent</string>
   <key>CFBundleExecutable</key><string>Screent</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+  <key>CFBundleVersion</key><string>${VERSION}</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

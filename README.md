@@ -27,10 +27,36 @@ region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only 
 
 Translation runs through your own Claude Code login. Each translation is a normal Claude Code request.
 
-## Install
+## Install the prebuilt app (v1.0.0.0)
+
+A ready-to-run build is in [`releases/1.0.0.0`](releases/1.0.0.0). It's universal (Apple Silicon and Intel) and needs macOS 14+.
+
+1. **Download** [`Screent-1.0.0.0.zip`](https://github.com/m-didenko/screent/raw/main/releases/1.0.0.0/Screent-1.0.0.0.zip). Optionally, check it against the checksum in [`Screent-1.0.0.0.zip.sha256`](releases/1.0.0.0/Screent-1.0.0.0.zip.sha256):
+
+   ```bash
+   shasum -a 256 ~/Downloads/Screent-1.0.0.0.zip
+   ```
+
+2. **Unzip it** and move `Screent.app` to `/Applications`.
+
+3. **Allow it to open.** The app isn't notarized by Apple (there's no paid Developer ID), so macOS blocks the first launch with *"Apple could not verify…"*. Either:
+   - open it once, then go to **System Settings → Privacy & Security** and click **Open Anyway**; or
+   - remove the download quarantine flag in Terminal:
+
+     ```bash
+     xattr -dr com.apple.quarantine /Applications/Screent.app
+     ```
+
+4. **Install Claude Code and log in** if you haven't already. The `claude` command must work in your terminal. Screent uses it for every translation and hint.
+
+5. **Launch Screent** and grant **Screen Recording** access, as described [below](#grant-screen-recording-access).
+
+Your Screen Recording permission survives updates to later versions, because every release is signed with the same certificate.
+
+## Build from source
 
 ```bash
-git clone git@github.com:m-didenko/screent.git
+git clone https://github.com/m-didenko/screent.git
 cd screent
 ```
 
@@ -187,6 +213,17 @@ Name alerts work in **auto mode** only, because the region has to be watched con
 | `PanelView.swift` | The SwiftUI panel |
 
 Claude Code runs in an empty working directory (`~/Library/Application Support/Screent/session`), so no project `CLAUDE.md` or tools leak into the translator.
+
+## Releases
+
+| Version | Download | Notes |
+|---|---|---|
+| 1.0.0.0 | [`Screent-1.0.0.0.zip`](releases/1.0.0.0/Screent-1.0.0.0.zip) | First release: translation (Ukrainian / Russian), English mode, AI hints, name alerts, minimize to the menu bar |
+
+To make a new release:
+1. Bump the version in [`VERSION`](VERSION).
+2. Run `./scripts/package-release.sh`. It builds a universal app and writes `releases/<version>/Screent-<version>.zip` with a `.sha256` checksum.
+3. Commit the new folder.
 
 ## Development
 
