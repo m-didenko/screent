@@ -94,7 +94,7 @@ final class ClaudeBridge {
     /// `resume` — продовжити наявну сесію (з іншою моделлю), зберігши весь контекст.
     func start(model: String, resume: String? = nil) throws {
         stop()
-        let exe = try Self.findClaude()
+        let exe = try ClaudeLocator.find()
 
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Screent/session", isDirectory: true)
@@ -117,7 +117,11 @@ final class ClaudeBridge {
             "--system-prompt", TranslatorPrompt.system,
         ]
         var env = ProcessInfo.processInfo.environment
-        env["PATH"] = Self.extraPaths.joined(separator: ":") + ":" + (env["PATH"] ?? "/usr/bin:/bin")
+        // The binary's own folder first: an npm-installed claude is a `#!/usr/bin/env node` script,
+        // so node must be found next to it (e.g. ~/.nvm/versions/node/<ver>/bin).
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let extra = [exe.deletingLastPathComponent().path, "\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"]
+        env["PATH"] = extra.joined(separator: ":") + ":" + (env["PATH"] ?? "/usr/bin:/bin")
         p.environment = env
 
         let inPipe = Pipe(), outPipe = Pipe(), errPipe = Pipe()
@@ -210,35 +214,5 @@ final class ClaudeBridge {
         default:
             break
         }
-    }
-
-    // MARK: - Пошук CLI
-
-    private static var extraPaths: [String] {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return ["\(home)/.local/bin", "\(home)/.claude/local", "/opt/homebrew/bin", "/usr/local/bin"]
-    }
-
-    private static func findClaude() throws -> URL {
-        for dir in extraPaths {
-            let path = dir + "/claude"
-            if FileManager.default.isExecutableFile(atPath: path) { return URL(fileURLWithPath: path) }
-        }
-        // Запасний варіант: спитати login-shell користувача.
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        p.arguments = ["-lc", "command -v claude"]
-        let out = Pipe()
-        p.standardOutput = out
-        p.standardError = FileHandle.nullDevice
-        try p.run()
-        p.waitUntilExit()
-        let path = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) else {
-            throw NSError(domain: "Screent", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "claude CLI not found. Install Claude Code."])
-        }
-        return URL(fileURLWithPath: path)
     }
 }

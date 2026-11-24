@@ -27,14 +27,14 @@ region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only 
 
 Translation runs through your own Claude Code login. Each translation is a normal Claude Code request.
 
-## Install the prebuilt app (v1.0.0.0)
+## Install the prebuilt app (v1.0.0.1)
 
-A ready-to-run build is in [`releases/1.0.0.0`](releases/1.0.0.0). It's universal (Apple Silicon and Intel) and needs macOS 14+.
+A ready-to-run build is on the [Releases page](https://github.com/m-didenko/screent/releases/latest) and in [`releases/1.0.0.1`](releases/1.0.0.1). It's universal (Apple Silicon and Intel) and needs macOS 14+.
 
-1. **Download** [`Screent-1.0.0.0.zip`](https://github.com/m-didenko/screent/raw/main/releases/1.0.0.0/Screent-1.0.0.0.zip). Optionally, check it against the checksum in [`Screent-1.0.0.0.zip.sha256`](releases/1.0.0.0/Screent-1.0.0.0.zip.sha256):
+1. **Download** [`Screent-1.0.0.1.zip`](https://github.com/m-didenko/screent/raw/main/releases/1.0.0.1/Screent-1.0.0.1.zip). Optionally, check it against the checksum in [`Screent-1.0.0.1.zip.sha256`](releases/1.0.0.1/Screent-1.0.0.1.zip.sha256):
 
    ```bash
-   shasum -a 256 ~/Downloads/Screent-1.0.0.0.zip
+   shasum -a 256 ~/Downloads/Screent-1.0.0.1.zip
    ```
 
 2. **Unzip it** and move `Screent.app` to `/Applications`.
@@ -105,7 +105,13 @@ tail -f ~/Library/Logs/Screent.log
   ```
 
 - **The permission resets after every rebuild:** you're building with an ad-hoc signature. Run `./scripts/setup-signing.sh`, rebuild, and grant access one more time.
-- **`claude CLI not found`:** Screent looks for `claude` in `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin`, `/usr/local/bin`, then falls back to your login shell's `PATH`.
+- **`claude CLI not found`:** Screent looks for `claude` in these places, in order:
+  1. `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin` and `/usr/local/bin`;
+  2. volta, fnm and bun;
+  3. nvm: your `default` alias first, then the newest installed Node;
+  4. your interactive login shell, `$SHELL -ilc 'command -v claude'`, which loads `~/.zshrc`.
+
+  The log shows the path it found, or every place it checked. If it's still not found, link it into `~/.local/bin`: `ln -s "$(command -v claude)" ~/.local/bin/claude`.
 
 ## Usage
 
@@ -218,6 +224,7 @@ Claude Code runs in an empty working directory (`~/Library/Application Support/S
 
 | Version | Download | Notes |
 |---|---|---|
+| 1.0.0.1 | [`Screent-1.0.0.1.zip`](releases/1.0.0.1/Screent-1.0.0.1.zip) | Fix "claude CLI not found" when Claude Code is installed with nvm (also volta, fnm, bun); the shell lookup now loads `~/.zshrc` and has a 5 s timeout |
 | 1.0.0.0 | [`Screent-1.0.0.0.zip`](releases/1.0.0.0/Screent-1.0.0.0.zip) | First release: translation (Ukrainian / Russian), English mode, AI hints, name alerts, minimize to the menu bar |
 
 To make a new release:
