@@ -9,7 +9,7 @@ region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only 
 
 - **Two modes:**
   - **Button:** press ⌥Space to translate what's in the region.
-  - **Auto:** translates whenever the text changes.
+  - **Auto:** collects captions and translates each finished thought, not half-sentences.
 - **Context-aware.** The whole session is a single Claude Code conversation, so names, terminology and style stay consistent, and translation quality improves as the meeting goes on.
 - **Handles bad speech-to-text.** Claude reconstructs what the speaker most likely meant instead of translating misheard words literally.
 - **AI hints.** In meetings about software, Claude suggests one thing you could say right now: a concrete solution, a sharp question, a risk nobody mentioned, or a light witty remark. You get the phrase in English plus its Ukrainian translation.
@@ -119,7 +119,7 @@ tail -f ~/Library/Logs/Screent.log
 2. **Resume.** Screent always starts paused: press ▶︎ in the header or **⌥⇧P** when you're ready.
 3. **Pick a mode** with the toggle in the panel header:
    - **Button:** press **⌥Space**, or the *Translate* button.
-   - **Auto:** the region is checked every 0.8 s. Text is sent once it has stopped changing, or after about 24 new words.
+   - **Auto:** the region is checked every 0.8 s and new text is accumulated until it forms a finished thought. It is sent when a sentence has ended and stopped changing, when the speaker pauses for about 2.5 s, or, during a long monologue, as soon as the finished sentences reach about 20 words (the unfinished tail keeps accumulating).
 4. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath. The feed follows the newest text. Scroll up to read history and autoscroll pauses. A ↓ button appears, marked **New** when something new arrives. Click it, or scroll back to the bottom, to follow again.
 
 | Shortcut | Action |

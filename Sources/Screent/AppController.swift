@@ -279,7 +279,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         send(diff, fullText: text)
     }
 
-    /// Авто: надсилаємо, коли текст «устоявся» (не змінювався один такт) або накопичилося багато нових слів.
+    /// Авто: накопичуємо текст і надсилаємо завершену думку — речення закінчилося й устоялося,
+    /// мовець замовк, або готові речення вже набрали достатньо слів.
     private func handleAuto(_ text: String) {
         ingest(text)
         let norm = TextDiffer.normalized(text)
@@ -293,10 +294,20 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
 
+        // Accumulate until the new text is a finished thought (see SentenceGate).
         let diff = TextDiffer.diff(previous: lastSentText, current: text)
-        guard !diff.isEmpty, stableTicks >= 1 || diff.wordCount >= 24 else { return }
-        frameWindow.flash()
-        send(diff, fullText: text)
+        guard !diff.isEmpty else { return }
+        switch SentenceGate.decide(text: diff.text, stableTicks: stableTicks) {
+        case .wait:
+            return
+        case .all:
+            frameWindow.flash()
+            send(diff, fullText: text)
+        case .upTo(let n):
+            frameWindow.flash()
+            send(TextDiffer.prefix(diff, words: n),
+                 fullText: TextDiffer.dropLast(diff.wordCount - n, of: text))
+        }
     }
 
     // MARK: - Згадка імені
