@@ -80,6 +80,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         startSession()
         applyMode(settings.mode)
+        setPaused(true) // після запуску завжди на паузі — переклад починається лише за бажанням користувача
         Task.detached(priority: .utility) { await OCR.warmUp() }
     }
 
@@ -170,13 +171,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func togglePause() {
-        paused.toggle()
-        model.paused = paused
-        if paused { pending = false }
-        frameWindow.setActive(settings.mode == .auto && !paused)
-        frameWindow.setPaused(paused)
-        restoreStatus()
+        setPaused(!paused)
         model.flash(paused ? "Переклад на паузі" : "Переклад відновлено")
+    }
+
+    private func setPaused(_ value: Bool) {
+        paused = value
+        model.paused = value
+        if value { pending = false }
+        frameWindow.setActive(settings.mode == .auto && !value)
+        frameWindow.setPaused(value)
+        restoreStatus()
     }
 
     // MARK: - Захоплення

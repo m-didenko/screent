@@ -82,10 +82,11 @@ tail -f ~/Library/Logs/Screent.log
 ## Usage
 
 1. **Select a region.** Use the ⌖ button in the panel or **⌥⇧R**, then drag over the text, e.g. the captions area of your meeting app. Press Esc to cancel.
-2. **Pick a mode** with the toggle in the panel header:
+2. **Resume.** Screent always starts paused: press ▶︎ in the header or **⌥⇧P** when you're ready.
+3. **Pick a mode** with the toggle in the panel header:
    - **Button:** press **⌥Space**, or the *Translate* button.
    - **Auto:** the region is checked every 0.8 s. Text is sent once it has stopped changing, or after about 24 new words.
-3. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath.
+4. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath.
 
 | Shortcut | Action |
 |---|---|
@@ -104,13 +105,13 @@ tail -f ~/Library/Logs/Screent.log
 | ⚪ grey | Paused |
 | 🔴 red | Error. The message is shown at the bottom of the panel. |
 
-**Panel header:** pause, mode toggle, select region, settings (sliders icon) and quit (power icon).
+**Panel header:** pause, mode toggle, select region, ↺ new session, settings (sliders icon) and quit (power icon).
 
 **Settings section** (opens under the header):
-- **Panel background:** opacity of the glass background, 10–100%. The text stays sharp and gets a soft shadow when the background is very transparent.
-- **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%. It never affects OCR.
+- **Panel background:** opacity of the glass background, 10–100%, default 100%. The text stays sharp and gets a soft shadow when the background is very transparent.
+- **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
 - **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
-- **Original**, **New session**, **Quit**.
+- **Original**, **Quit**.
 
 **Menu bar menu:**
 

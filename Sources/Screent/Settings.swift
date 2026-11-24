@@ -39,7 +39,7 @@ final class AppSettings {
 
     /// Яскравість підсвітки зони захоплення: 0…1.
     var regionHighlight: Double {
-        get { defaults.object(forKey: "regionHighlight") as? Double ?? 0.5 }
+        get { defaults.object(forKey: "regionHighlight") as? Double ?? 1.0 }
         set { defaults.set(newValue, forKey: "regionHighlight") }
     }
 

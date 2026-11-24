@@ -17,7 +17,7 @@ final class TranslationPanel: NSPanel {
         hasShadow = true
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        minSize = NSSize(width: 360, height: 180)
+        minSize = NSSize(width: 400, height: 180)
         appearance = NSAppearance(named: .darkAqua)
 
         contentView = FirstMouseHostingView(rootView: PanelView().environmentObject(model))
@@ -79,7 +79,7 @@ private struct Header: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 6) {
             StatusDot(status: model.status)
             Text(statusLabel)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
@@ -95,6 +95,8 @@ private struct Header: View {
                        action: model.onTogglePause)
             ModeToggle(mode: model.mode, onChange: model.onSetMode)
             IconButton(symbol: "viewfinder", help: "Виділити область (⌥⇧R)", action: model.onSelectRegion)
+            IconButton(symbol: "arrow.counterclockwise", help: "Нова сесія — очистити стрічку й контекст Claude",
+                       action: model.onNewSession)
             IconButton(symbol: "slider.horizontal.3", help: "Налаштування",
                        tint: model.showSettings ? Theme.accent : nil,
                        action: { model.showSettings.toggle() })
@@ -109,7 +111,7 @@ private struct Header: View {
     private var statusLabel: String {
         switch model.status {
         case .idle: return "ПРАЦЮЄ"
-        case .listening: return "ПРАЦЮЄ · АВТО"
+        case .listening: return "ПРАЦЮЄ"
         case .working: return "ПЕРЕКЛАДАЮ"
         case .paused: return "ПАУЗА"
         case .error: return "ПОМИЛКА"
@@ -182,6 +184,8 @@ private struct ModeToggle: View {
                 .font(.system(size: 11, weight: .medium))
                 .padding(.horizontal, 10)
                 .frame(height: 22)
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundStyle(mode == m ? Color.black.opacity(0.85) : .white.opacity(0.55))
                 .background {
                     if mode == m {
@@ -249,7 +253,6 @@ private struct SettingsStrip: View {
             HStack(spacing: 8) {
                 PillButton(title: "Оригінал", symbol: model.showOriginal ? "eye" : "eye.slash",
                            active: model.showOriginal, action: model.onToggleOriginal)
-                PillButton(title: "Нова сесія", symbol: "arrow.counterclockwise", action: model.onNewSession)
                 Spacer()
                 PillButton(title: "Вийти", symbol: "power", tint: Theme.danger, action: model.onQuit)
             }

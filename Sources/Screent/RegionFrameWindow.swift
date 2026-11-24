@@ -34,7 +34,7 @@ private final class FrameView: NSView {
     var active = false { didSet { needsDisplay = true } }
     var paused = false { didSet { needsDisplay = true } }
     /// Яскравість підсвітки з налаштувань: 0…1.
-    var level: CGFloat = 0.5 { didSet { needsDisplay = true } }
+    var level: CGFloat = 1.0 { didSet { needsDisplay = true } }
     /// Відступ рамки від області (див. RegionFrameWindow.outset).
     private let inset: CGFloat = 8
     private var highlight: CGFloat = 0 { didSet { needsDisplay = true } }
