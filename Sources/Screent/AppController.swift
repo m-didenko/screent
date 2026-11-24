@@ -75,6 +75,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onTogglePause = { [weak self] in self?.togglePause() }
         model.onRegionHighlight = { [weak self] in self?.frameWindow.setHighlight($0) }
         model.onQuit = { NSApp.terminate(nil) }
+        model.onMinimize = { [weak self] in self?.minimizePanel() }
         model.onDismissMention = { [weak self] in self?.model.mention = nil }
         model.onHint = { [weak self] in self?.hintNow() }
         model.onSelectModel = { [weak self] in self?.switchModel($0) }
@@ -202,6 +203,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func setPaused(_ value: Bool) {
+        if !value && !panel.isVisible { showPanel() } // відновлення перекладу завжди повертає панель
         paused = value
         model.paused = value
         if value { pending = false; hintPending = false }
@@ -330,7 +332,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lastMentionAt = Date()
         NSSound(named: "Glass")?.play()
         frameWindow.flash()
-        panel.orderFrontRegardless()
+        showPanel()
         model.mention = MentionAlert(snippet: snippet, context: context, isStreaming: true)
         Log.write("mention detected (\(source))")
     }
@@ -602,6 +604,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.model.flash("Region saved")
             }
             if let r = self.settings.region { self.showFrame(r) }
+            if !self.panel.isVisible { self.showPanel() }
         }
     }
 
@@ -615,17 +618,70 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func togglePanel() {
-        if panel.isVisible { panel.orderOut(nil) } else { panel.orderFrontRegardless() }
+        if panel.isVisible { minimizePanel() } else { showPanel() }
+    }
+
+    /// Згорнути в рядок меню — лише на паузі: під час живого перекладу панель має бути на екрані.
+    private func minimizePanel() {
+        guard paused else {
+            model.flash("Pause first (⌥⇧P), then minimize")
+            NSSound.beep()
+            return
+        }
+        panel.orderOut(nil)
+        frameWindow.orderOut(nil)
+        updateStatusIcon()
+        Log.write("panel minimized")
+    }
+
+    private func showPanel() {
+        panel.orderFrontRegardless()
+        if let r = settings.region { showFrame(r) }
+        updateStatusIcon()
     }
 
     // MARK: - Меню в рядку меню
 
+    private var statusMenu: NSMenu!
+
+    /// Значок у рядку меню (біля годинника). Клік, коли панель згорнута, — розгорнути її;
+    /// інакше (або правий клік / ⌥-клік) — меню.
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "character.bubble", accessibilityDescription: "Screent")
-        let menu = NSMenu()
-        menu.delegate = self
-        statusItem.menu = menu
+        statusItem.autosaveName = "ScreentStatusItem"
+        statusMenu = NSMenu()
+        statusMenu.autoenablesItems = false
+        statusMenu.delegate = self
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+        updateStatusIcon()
+    }
+
+    @objc private func statusItemClicked() {
+        let event = NSApp.currentEvent
+        let wantsMenu = event?.type == .rightMouseUp || event?.modifierFlags.contains(.option) == true
+        if !panel.isVisible && !wantsMenu {
+            showPanel()
+            return
+        }
+        // Показати меню під значком.
+        statusItem.menu = statusMenu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    /// Згорнута панель — заповнений значок: видно, що Screent працює у фоні.
+    private func updateStatusIcon() {
+        let minimized = panel.map { !$0.isVisible } ?? false
+        let name = minimized ? "character.bubble.fill" : "character.bubble"
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: "Screent")
+        image?.isTemplate = true
+        statusItem?.button?.image = image
+        statusItem?.button?.toolTip = minimized ? "Screent is minimized — click to show the panel"
+                                                : "Screent — click for the menu"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -641,8 +697,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Select Region…", #selector(menuSelectRegion), key: "r", mods: [.option, .shift]))
         menu.addItem(item("Show Region Frame", #selector(menuToggleFrame), checked: settings.showFrame))
         menu.addItem(item("Show Original", #selector(menuToggleOriginal), checked: settings.showOriginal))
-        menu.addItem(item(panel.isVisible ? "Hide Panel" : "Show Panel", #selector(menuTogglePanel),
-                          key: "h", mods: [.option, .shift]))
+        let panelItem = item(panel.isVisible ? (paused ? "Minimize to Menu Bar" : "Minimize (pause first)") : "Show Panel",
+                             #selector(menuTogglePanel), key: "h", mods: [.option, .shift])
+        panelItem.isEnabled = !(panel.isVisible && !paused)
+        menu.addItem(panelItem)
         menu.addItem(.separator())
 
         let modelMenu = NSMenu()

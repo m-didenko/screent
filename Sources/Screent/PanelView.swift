@@ -17,7 +17,7 @@ final class TranslationPanel: NSPanel {
         hasShadow = true
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        minSize = NSSize(width: 440, height: 180)
+        minSize = NSSize(width: 470, height: 180)
         appearance = NSAppearance(named: .darkAqua)
 
         self.model = model
@@ -156,6 +156,10 @@ private struct Header: View {
             IconButton(symbol: "slider.horizontal.3", help: "Settings",
                        tint: model.showSettings ? Theme.accent : nil,
                        action: { model.showSettings.toggle() })
+            IconButton(symbol: "minus", help: model.paused ? "Minimize to the menu bar (⌥⇧H)"
+                                                           : "Pause first to minimize",
+                       action: model.onMinimize)
+                .opacity(model.paused ? 1 : 0.3)
             IconButton(symbol: "power", help: "Quit Screent", action: model.onQuit)
         }
         .padding(.leading, 14)

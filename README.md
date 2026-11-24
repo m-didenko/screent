@@ -97,7 +97,7 @@ tail -f ~/Library/Logs/Screent.log
 | ⌥⇧P | Pause / resume |
 | ⌥⇧I | AI hint now |
 | ⌥⇧R | Select region |
-| ⌥⇧H | Show / hide panel |
+| ⌥⇧H | Minimize to the menu bar (when paused) / show panel |
 
 **Status indicator** in the panel header:
 
@@ -108,7 +108,7 @@ tail -f ~/Library/Logs/Screent.log
 | ⚪ grey | Paused |
 | 🔴 red | Error. The message is shown at the bottom of the panel. |
 
-**Panel header:** status (LIVE / THINKING / PAUSED / ERROR), pause, Button/Auto toggle, 🔔 mute/unmute name alerts, select region, ↺ new session, settings (sliders icon) and quit (power icon).
+**Panel header:** status (LIVE / THINKING / PAUSED / ERROR), pause, Button/Auto toggle, 🔔 mute/unmute name alerts, select region, ↺ new session, settings (sliders icon), − minimize and quit (power icon).
 
 **Settings section** (opens under the header):
 - **Text size:** size of the feed, hint and mention text, 0–100%. The default is 50%, which is the base size; 0% is 0.7× and 100% is 1.6×.
@@ -131,6 +131,16 @@ tail -f ~/Library/Logs/Screent.log
 | Show original | Shows or hides the English text above each translation |
 
 > The interface is in English, since you're in an English-speaking meeting anyway. Translation, notes, hints and mention cards use the language chosen under **Translate to** (Ukrainian or Russian).
+
+## Minimizing
+
+When Screent is **paused**, the − button in the header, **⌥⇧H**, or **Minimize to Menu Bar** in the menu bar menu hides the panel and the region highlight. The app keeps running in the menu bar.
+
+- **While translating** you can't minimize, because live text has to stay on screen. Pause first.
+- **While minimized,** the Screent icon in the macOS menu bar, next to the clock, turns solid.
+- **To bring the panel back,** click that icon, press **⌥⇧H**, or simply resume with **⌥⇧P**: resuming always shows the panel and the region again.
+- **To open the menu,** click the icon while the panel is visible, or right-click or ⌥-click it at any time.
+- **To move the icon closer to the clock,** ⌘-drag it in the menu bar; macOS remembers the position.
 
 ## Translation, English mode and AI hints
 

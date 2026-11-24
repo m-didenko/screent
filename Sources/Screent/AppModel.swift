@@ -86,6 +86,7 @@ final class AppModel: ObservableObject {
     var onTogglePause: () -> Void = {}
     var onRegionHighlight: (Double) -> Void = { _ in }
     var onQuit: () -> Void = {}
+    var onMinimize: () -> Void = {}
     var onDismissMention: () -> Void = {}
     var onHint: () -> Void = {}
     var onSelectModel: (String) -> Void = { _ in }
