@@ -350,7 +350,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         \(recentCaptions.trimmingCharacters(in: .whitespacesAndNewlines))
         """
         do {
-            try bridge.send(message)
+            try bridge.send(envelope(message))
             turnKind = .mention
             busy = true
             model.status = .working
@@ -401,7 +401,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         target?.source = diff.text
 
         do {
-            try bridge.send(message)
+            try bridge.send(envelope(message))
             lastSentText = fullText
             busy = true
             model.status = .working
@@ -444,7 +444,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         wordsSinceHint = 0
         lastHintAt = Date()
         do {
-            try bridge.send(message)
+            try bridge.send(envelope(message))
             turnKind = .hint
             busy = true
             model.status = .working
@@ -460,6 +460,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if mentionPending { sendMention() }
         else if hintPending { requestHint(auto: false) }
         else if pending { pending = false; translateNow() }
+    }
+
+    /// Кожне повідомлення несе мову перекладу: її можна змінити посеред сесії без втрати контексту.
+    private func envelope(_ body: String) -> String {
+        "TARGET: \(settings.targetLanguage.promptName)\n" + body
     }
 
     /// В авто-режимі повідомляємо Claude ім'я користувача, щоб він теж помічав звернення.
@@ -709,7 +714,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let h = Hint.parse(e.translation)
                 md += "💡 \(h.tip)\n\n"
                 if !h.en.isEmpty { md += "> **EN:** \(h.en)\n" }
-                if !h.ua.isEmpty { md += "> **UA:** \(h.ua)\n" }
+                if !h.ua.isEmpty { md += "> **\(settings.targetLanguage.code):** \(h.ua)\n" }
                 md += "\n---\n\n"
                 continue
             }

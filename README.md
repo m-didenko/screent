@@ -1,6 +1,6 @@
 # Screent
 
-Live on-screen translation for macOS. Pick a region of your screen with English text, such as meeting captions, a video or a chat. Screent reads it and shows a running Ukrainian translation in a small floating panel.
+Live on-screen translation for macOS. Pick a region of your screen with English text, such as meeting captions, a video or a chat. Screent reads it and shows a running Ukrainian or Russian translation in a small floating panel.
 
 ```
 region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only the new text
@@ -114,6 +114,7 @@ tail -f ~/Library/Logs/Screent.log
 - **Text size:** size of the feed, hint and mention text, 0–100%. The default is 50%, which is the base size; 0% is 0.7× and 100% is 1.6×.
 - **Panel background:** opacity of the background, 10–100%, default 100%. At 100% the background is almost solid dark, so text is readable over anything. Lower values reveal more of the glass behind it, and the text gets a soft shadow.
 - **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
+- **Translation language:** Українська (Ukrainian) or Русский (Russian). You can switch mid-session without losing context: each request to Claude carries the target language.
 - **Features:** **Translation** and **Hints** toggle independently. See [Translation, English mode and AI hints](#translation-english-mode-and-ai-hints).
 - **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
 - **Original**, **Quit**.
@@ -128,7 +129,7 @@ tail -f ~/Library/Logs/Screent.log
 | Show region frame | Shows or hides the highlight around the captured region |
 | Show original | Shows or hides the English text above each translation |
 
-> The interface is currently in Ukrainian. The translation target language is set in the system prompt in `Sources/Screent/ClaudeBridge.swift`.
+> The interface is currently in Ukrainian. Translation, notes, hints and mention cards use the language chosen in settings.
 
 ## Translation, English mode and AI hints
 

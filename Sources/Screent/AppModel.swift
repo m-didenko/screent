@@ -55,6 +55,9 @@ final class AppModel: ObservableObject {
     @Published var translateEnabled = AppSettings.shared.translateEnabled {
         didSet { AppSettings.shared.translateEnabled = translateEnabled }
     }
+    @Published var targetLanguage = AppSettings.shared.targetLanguage {
+        didSet { AppSettings.shared.targetLanguage = targetLanguage }
+    }
     @Published var hintsEnabled = AppSettings.shared.hintsEnabled {
         didSet { AppSettings.shared.hintsEnabled = hintsEnabled }
     }

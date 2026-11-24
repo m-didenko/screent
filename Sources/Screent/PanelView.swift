@@ -309,6 +309,18 @@ private struct SettingsStrip: View {
                     .help("AI радить, що сказати на мітингу (англійською + переклад)")
                 Spacer()
             }
+            HStack(spacing: 10) {
+                Text("Мова перекладу")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .frame(width: 92, alignment: .leading)
+                LanguageToggle(selection: $model.targetLanguage)
+                    .disabled(!model.translateEnabled)
+                    .opacity(model.translateEnabled ? 1 : 0.4)
+                    .help(model.translateEnabled ? "Мову можна змінити посеред сесії — контекст збережеться"
+                                                 : "Увімкніть переклад, щоб обрати мову")
+                Spacer()
+            }
             SliderRow(title: "Розмір тексту", value: $model.textSize, range: 0...1)
             SliderRow(title: "Фон панелі", value: $model.panelOpacity, range: 0.1...1)
             SliderRow(title: "Підсвітка зони", value: $model.regionHighlight, range: 0...1)
@@ -364,6 +376,39 @@ private struct SliderRow: View {
                 .foregroundStyle(.white.opacity(0.45))
                 .frame(width: 34, alignment: .trailing)
         }
+    }
+}
+
+private struct LanguageToggle: View {
+    @Binding var selection: TargetLanguage
+    @Namespace private var ns
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(TargetLanguage.allCases, id: \.self) { lang in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) { selection = lang }
+                } label: {
+                    Text(lang.title)
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 10)
+                        .frame(height: 22)
+                        .foregroundStyle(selection == lang ? Color.black.opacity(0.85) : .white.opacity(0.55))
+                        .background {
+                            if selection == lang {
+                                Capsule().fill(Theme.accent).matchedGeometryEffect(id: "lang", in: ns)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(Capsule().fill(.white.opacity(0.06)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.06), lineWidth: 1))
     }
 }
 

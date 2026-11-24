@@ -5,6 +5,16 @@ enum CaptureMode: String {
     case manual, auto
 }
 
+/// Мова перекладу.
+enum TargetLanguage: String, CaseIterable {
+    case uk, ru
+
+    /// Як мову називаємо в повідомленнях для Claude.
+    var promptName: String { self == .uk ? "Ukrainian" : "Russian" }
+    var title: String { self == .uk ? "Українська" : "Русский" }
+    var code: String { self == .uk ? "UA" : "RU" }
+}
+
 /// Налаштування, що зберігаються між запусками.
 final class AppSettings {
     static let shared = AppSettings()
@@ -71,6 +81,11 @@ final class AppSettings {
     var textSize: Double {
         get { defaults.object(forKey: "textSize") as? Double ?? 0.5 }
         set { defaults.set(newValue, forKey: "textSize") }
+    }
+
+    var targetLanguage: TargetLanguage {
+        get { TargetLanguage(rawValue: defaults.string(forKey: "targetLanguage") ?? "") ?? .uk }
+        set { defaults.set(newValue.rawValue, forKey: "targetLanguage") }
     }
 
     /// Область захоплення в глобальних координатах AppKit (початок — лівий нижній кут).

@@ -3,7 +3,7 @@ import Foundation
 /// Підказка від Claude у форматі:
 ///   TIP: що відбувається і що варто додати
 ///   EN: готова фраза англійською
-///   UA: її переклад (лише коли переклад увімкнено)
+///   TR: її переклад мовою перекладу (лише коли переклад увімкнено)
 struct Hint: Equatable {
     var tip = ""
     var en = ""
@@ -24,7 +24,9 @@ struct Hint: Equatable {
             let upper = t.uppercased()
             if upper.hasPrefix("TIP:") { current = \.tip; h.tip = rest(t) }
             else if upper.hasPrefix("EN:") { current = \.en; h.en = rest(t) }
-            else if upper.hasPrefix("UA:") { current = \.ua; h.ua = rest(t) }
+            else if upper.hasPrefix("TR:") || upper.hasPrefix("UA:") || upper.hasPrefix("RU:") {
+                current = \.ua; h.ua = rest(t)
+            }
             else { h[keyPath: current] += (h[keyPath: current].isEmpty ? "" : " ") + t }
         }
         return h
