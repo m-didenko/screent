@@ -69,6 +69,20 @@ private final class FirstMouseHostingView<Content: View>: NSHostingView<Content>
 
 // MARK: - Корінь
 
+/// Масштаб тексту стрічки: 50% у налаштуваннях = 1.0 (базовий розмір).
+private struct TextScaleKey: EnvironmentKey { static let defaultValue: CGFloat = 1 }
+extension EnvironmentValues {
+    var textScale: CGFloat {
+        get { self[TextScaleKey.self] }
+        set { self[TextScaleKey.self] = newValue }
+    }
+}
+
+/// 0% → 0.7×, 50% → 1×, 100% → 1.6×.
+func feedTextScale(for setting: Double) -> CGFloat {
+    setting <= 0.5 ? 0.7 + 0.6 * setting : 1.0 + (setting - 0.5) * 1.2
+}
+
 struct PanelView: View {
     @EnvironmentObject var model: AppModel
 
@@ -108,6 +122,7 @@ struct PanelView: View {
         .shadow(color: .black.opacity(0.6 * (1 - model.panelOpacity)), radius: 2)
         .animation(.easeOut(duration: 0.2), value: model.showSettings)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: model.mention?.id)
+        .environment(\.textScale, feedTextScale(for: model.textSize))
         .preferredColorScheme(.dark)
     }
 }
@@ -294,6 +309,7 @@ private struct SettingsStrip: View {
                     .help("AI радить, що сказати на мітингу (англійською + переклад)")
                 Spacer()
             }
+            SliderRow(title: "Розмір тексту", value: $model.textSize, range: 0...1)
             SliderRow(title: "Фон панелі", value: $model.panelOpacity, range: 0.1...1)
             SliderRow(title: "Підсвітка зони", value: $model.regionHighlight, range: 0...1)
             HStack(spacing: 10) {
@@ -400,6 +416,7 @@ private struct PillButton: View {
 // MARK: - Підказка
 
 private struct HintCard: View {
+    @Environment(\.textScale) private var ts
     let entry: Entry
     let isLatest: Bool
     @State private var copied = false
@@ -429,20 +446,20 @@ private struct HintCard: View {
 
             if !hint.tip.isEmpty {
                 Text(hint.tip)
-                    .font(.system(size: 11.5))
+                    .font(.system(size: 11.5 * ts))
                     .foregroundStyle(.white.opacity(0.55))
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !hint.en.isEmpty {
                 (Text(hint.en) + (entry.isStreaming && hint.ua.isEmpty ? Text(" ▍").foregroundColor(Theme.hint) : Text("")))
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 15 * ts, weight: .medium))
                     .lineSpacing(3)
                     .foregroundStyle(.white.opacity(0.95))
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !hint.ua.isEmpty {
                 Text(hint.ua)
-                    .font(.system(size: 12.5))
+                    .font(.system(size: 12.5 * ts))
                     .lineSpacing(2)
                     .foregroundStyle(.white.opacity(0.5))
                     .fixedSize(horizontal: false, vertical: true)
@@ -460,6 +477,7 @@ private struct HintCard: View {
 // MARK: - Згадка імені
 
 private struct MentionBanner: View {
+    @Environment(\.textScale) private var ts
     let mention: MentionAlert
     let onDismiss: () -> Void
 
@@ -481,7 +499,7 @@ private struct MentionBanner: View {
                         .foregroundStyle(.white.opacity(0.35))
                 }
                 Text("«\(mention.snippet)»")
-                    .font(.system(size: 11).italic())
+                    .font(.system(size: 11 * ts).italic())
                     .foregroundStyle(.white.opacity(0.4))
                     .lineLimit(2)
                 Group {
@@ -492,7 +510,7 @@ private struct MentionBanner: View {
                             + (mention.isStreaming ? Text(" ▍").foregroundColor(Theme.accent) : Text(""))
                     }
                 }
-                .font(.system(size: 13))
+                .font(.system(size: 13 * ts))
                 .lineSpacing(2.5)
                 .foregroundStyle(.white.opacity(0.92))
                 .fixedSize(horizontal: false, vertical: true)
@@ -617,6 +635,7 @@ private struct BottomOffsetKey: PreferenceKey {
 }
 
 private struct EntryView: View {
+    @Environment(\.textScale) private var ts
     let entry: Entry
     let isLatest: Bool
     let showOriginal: Bool
@@ -627,7 +646,7 @@ private struct EntryView: View {
             HintCard(entry: entry, isLatest: isLatest)
         case .caption:
             Text(entry.original)
-                .font(.system(size: 15))
+                .font(.system(size: 15 * ts))
                 .lineSpacing(3.5)
                 .foregroundStyle(.white.opacity(0.94))
                 .textSelection(.enabled)
@@ -642,13 +661,13 @@ private struct EntryView: View {
         VStack(alignment: .leading, spacing: 6) {
             if showOriginal {
                 Text(entry.original)
-                    .font(.system(size: 11))
+                    .font(.system(size: 11 * ts))
                     .foregroundStyle(.white.opacity(0.32))
                     .lineSpacing(1.5)
                     .lineLimit(5)
             }
             translation
-                .font(.system(size: 15))
+                .font(.system(size: 15 * ts))
                 .lineSpacing(3.5)
                 .foregroundStyle(.white.opacity(0.94))
             if !entry.notes.isEmpty {
@@ -699,6 +718,7 @@ private struct EntryView: View {
 
 /// Пояснення: «SRS — Software Requirements Specification, …». Термін до « — » виділяємо.
 private struct NoteRow: View {
+    @Environment(\.textScale) private var ts
     let note: String
 
     var body: some View {
@@ -711,7 +731,7 @@ private struct NoteRow: View {
                 Text(note)
             }
         }
-        .font(.system(size: 11.5))
+        .font(.system(size: 11.5 * ts))
         .lineSpacing(2)
         .foregroundStyle(.white.opacity(0.5))
         .fixedSize(horizontal: false, vertical: true)

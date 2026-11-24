@@ -67,6 +67,12 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "alertsMuted") }
     }
 
+    /// Розмір тексту стрічки: 0…1, 0.5 = базовий.
+    var textSize: Double {
+        get { defaults.object(forKey: "textSize") as? Double ?? 0.5 }
+        set { defaults.set(newValue, forKey: "textSize") }
+    }
+
     /// Область захоплення в глобальних координатах AppKit (початок — лівий нижній кут).
     var region: CGRect? {
         get {

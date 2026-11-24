@@ -111,6 +111,7 @@ tail -f ~/Library/Logs/Screent.log
 **Panel header:** pause, mode toggle, 🔔 mute/unmute name alerts, select region, ↺ new session, settings (sliders icon) and quit (power icon).
 
 **Settings section** (opens under the header):
+- **Text size:** size of the feed, hint and mention text, 0–100%. The default is 50%, which is the base size; 0% is 0.7× and 100% is 1.6×.
 - **Panel background:** opacity of the background, 10–100%, default 100%. At 100% the background is almost solid dark, so text is readable over anything. Lower values reveal more of the glass behind it, and the text gets a soft shadow.
 - **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
 - **Features:** **Translation** and **Hints** toggle independently. See [Translation, English mode and AI hints](#translation-english-mode-and-ai-hints).

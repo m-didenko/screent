@@ -67,6 +67,9 @@ final class AppModel: ObservableObject {
     @Published var panelOpacity = AppSettings.shared.panelOpacity {
         didSet { AppSettings.shared.panelOpacity = panelOpacity }
     }
+    @Published var textSize = AppSettings.shared.textSize {
+        didSet { AppSettings.shared.textSize = textSize }
+    }
     @Published var regionHighlight = AppSettings.shared.regionHighlight {
         didSet { AppSettings.shared.regionHighlight = regionHighlight; onRegionHighlight(regionHighlight) }
     }
