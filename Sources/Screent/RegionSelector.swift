@@ -101,8 +101,8 @@ private final class SelectionView: NSView {
 
     private func drawHint() {
         let center = CGPoint(x: bounds.midX, y: bounds.maxY * 0.72)
-        drawPill("Виділіть область із текстом", center: center, mono: false, size: 13)
-        drawPill("Esc — скасувати", center: CGPoint(x: center.x, y: center.y - 32),
+        drawPill("Drag over the text you want to capture", center: center, mono: false, size: 13)
+        drawPill("Esc to cancel", center: CGPoint(x: center.x, y: center.y - 32),
                  mono: false, size: 11, alpha: 0.55)
     }
 

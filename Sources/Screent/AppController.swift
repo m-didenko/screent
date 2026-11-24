@@ -163,7 +163,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.mention?.isStreaming = false
         if let i = hintIndex, model.entries.indices.contains(i) { model.entries[i].isStreaming = false }
         hintIndex = nil
-        model.status = .error("Claude Code зупинився: \(reason)")
+        model.status = .error("Claude Code stopped: \(reason)")
     }
 
     // MARK: - Режими
@@ -185,7 +185,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func toggleMode() {
         applyMode(settings.mode == .auto ? .manual : .auto)
-        model.flash(settings.mode == .auto ? "Автоматичний режим" : "Режим за кнопкою")
+        model.flash(settings.mode == .auto ? "Auto mode" : "Button mode")
     }
 
     private func restoreStatus() {
@@ -196,7 +196,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func togglePause() {
         setPaused(!paused)
-        model.flash(paused ? "Переклад на паузі" : "Переклад відновлено")
+        model.flash(paused ? "Paused" : "Resumed")
     }
 
     private func setPaused(_ value: Bool) {
@@ -211,11 +211,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Захоплення
 
     private func translateNow() {
-        if paused { model.flash("Пауза — натисніть ▶︎ або ⌥⇧P"); return }
+        if paused { model.flash("Paused — press ▶︎ or ⌥⇧P"); return }
         guard let region = settings.region else { selectRegion(); return }
         if busy || capturing {
             pending = true
-            model.flash("У черзі — перекладу одразу після поточного")
+            model.flash("Queued — will run right after the current one")
             return
         }
         Task { await runCapture(region: region, manual: true) }
@@ -223,12 +223,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Підказка просто зараз: свіжий знімок → підказка.
     private func hintNow() {
-        guard settings.hintsEnabled else { model.flash("Увімкніть підказки в налаштуваннях"); return }
-        if paused { model.flash("Пауза — натисніть ▶︎ або ⌥⇧P"); return }
+        guard settings.hintsEnabled else { model.flash("Turn on Hints in settings"); return }
+        if paused { model.flash("Paused — press ▶︎ or ⌥⇧P"); return }
         guard let region = settings.region else { selectRegion(); return }
         if busy || capturing {
             hintPending = true
-            model.flash("Підказка — одразу після поточної відповіді")
+            model.flash("Hint queued — right after the current reply")
             return
         }
         Task { await runCapture(region: region, manual: true, forHint: true) }
@@ -269,7 +269,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let diff = TextDiffer.diff(previous: lastSentText, current: text)
         guard !diff.isEmpty else {
             restoreStatus()
-            model.flash(text.isEmpty ? "Текст в області не знайдено" : "Нового тексту немає")
+            model.flash(text.isEmpty ? "No text found in the region" : "No new text")
             return
         }
         send(diff, fullText: text)
@@ -538,7 +538,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if turnKind == .mention {
             turnKind = .translation
             model.mention?.isStreaming = false
-            if isError { model.mention?.context = message ?? "Помилка Claude Code" }
+            if isError { model.mention?.context = message ?? "Claude Code error" }
             restoreStatus()
             drainQueue()
             return
@@ -549,7 +549,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 model.entries[i].isStreaming = false
                 let hint = Hint.parse(model.entries[i].translation)
                 if isError {
-                    model.entries[i].translation = "TIP: " + (message ?? "Помилка Claude Code")
+                    model.entries[i].translation = "TIP: " + (message ?? "Claude Code error")
                 } else if hint.isEmpty {
                     model.entries.remove(at: i) // Claude вирішив, що додати нічого
                 }
@@ -576,7 +576,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         target = nil
 
         if isError {
-            model.status = .error(message ?? "Помилка Claude Code")
+            model.status = .error(message ?? "Claude Code error")
         } else {
             restoreStatus()
         }
@@ -596,7 +596,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.model.hasRegion = true
                 self.lastSentText = ""
                 self.lastPolled = ""
-                self.model.flash("Область збережено")
+                self.model.flash("Region saved")
             }
             if let r = self.settings.region { self.showFrame(r) }
         }
@@ -628,33 +628,33 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        menu.addItem(item("Перекласти зараз", #selector(menuTranslate), key: " ", mods: [.option]))
-        menu.addItem(item(paused ? "Відновити переклад" : "Пауза", #selector(menuTogglePause), key: "p", mods: [.option, .shift]))
+        menu.addItem(item("Translate Now", #selector(menuTranslate), key: " ", mods: [.option]))
+        menu.addItem(item(paused ? "Resume" : "Pause", #selector(menuTogglePause), key: "p", mods: [.option, .shift]))
         menu.addItem(.separator())
-        menu.addItem(item("Режим: за кнопкою", #selector(menuManual), checked: settings.mode == .manual))
-        menu.addItem(item("Режим: автоматично", #selector(menuAuto), key: " ", mods: [.option, .shift],
+        menu.addItem(item("Mode: Button", #selector(menuManual), checked: settings.mode == .manual))
+        menu.addItem(item("Mode: Auto", #selector(menuAuto), key: " ", mods: [.option, .shift],
                           checked: settings.mode == .auto))
         menu.addItem(.separator())
-        menu.addItem(item("Виділити область…", #selector(menuSelectRegion), key: "r", mods: [.option, .shift]))
-        menu.addItem(item("Показувати рамку області", #selector(menuToggleFrame), checked: settings.showFrame))
-        menu.addItem(item("Показувати оригінал", #selector(menuToggleOriginal), checked: settings.showOriginal))
-        menu.addItem(item(panel.isVisible ? "Сховати панель" : "Показати панель", #selector(menuTogglePanel),
+        menu.addItem(item("Select Region…", #selector(menuSelectRegion), key: "r", mods: [.option, .shift]))
+        menu.addItem(item("Show Region Frame", #selector(menuToggleFrame), checked: settings.showFrame))
+        menu.addItem(item("Show Original", #selector(menuToggleOriginal), checked: settings.showOriginal))
+        menu.addItem(item(panel.isVisible ? "Hide Panel" : "Show Panel", #selector(menuTogglePanel),
                           key: "h", mods: [.option, .shift]))
         menu.addItem(.separator())
 
         let modelMenu = NSMenu()
-        for (alias, title) in [("sonnet", "Sonnet — баланс"), ("haiku", "Haiku — найшвидша"), ("opus", "Opus — найточніша")] {
+        for (alias, title) in [("sonnet", "Sonnet — balanced"), ("haiku", "Haiku — fastest"), ("opus", "Opus — most accurate")] {
             let mi = item(title, #selector(menuModel(_:)), checked: settings.model == alias)
             mi.representedObject = alias
             modelMenu.addItem(mi)
         }
-        let modelItem = NSMenuItem(title: "Модель", action: nil, keyEquivalent: "")
+        let modelItem = NSMenuItem(title: "Model", action: nil, keyEquivalent: "")
         modelItem.submenu = modelMenu
         menu.addItem(modelItem)
-        menu.addItem(item("Нова сесія", #selector(menuNewSession)))
-        menu.addItem(item("Експортувати стенограму…", #selector(menuExport)))
+        menu.addItem(item("New Session", #selector(menuNewSession)))
+        menu.addItem(item("Export Transcript…", #selector(menuExport)))
         menu.addItem(.separator())
-        menu.addItem(item("Вийти", #selector(menuQuit), key: "q"))
+        menu.addItem(item("Quit Screent", #selector(menuQuit), key: "q"))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "",
@@ -686,17 +686,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if model.entries.isEmpty && !busy {
             startSession()
         } else {
-            model.flash("Модель застосується в новій сесії")
+            model.flash("The model applies to the next session")
         }
     }
 
     @objc private func menuNewSession() {
         startSession()
-        model.flash("Нова сесія — контекст очищено")
+        model.flash("New session — context cleared")
     }
 
     @objc private func menuExport() {
-        guard !model.entries.isEmpty else { model.flash("Стенограма порожня"); return }
+        guard !model.entries.isEmpty else { model.flash("The transcript is empty"); return }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH-mm"
         let save = NSSavePanel()
@@ -707,7 +707,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let time = DateFormatter()
         time.dateFormat = "HH:mm:ss"
-        var md = "# Screent — стенограма\n\n"
+        var md = "# Screent — transcript\n\n"
         for e in model.entries {
             md += "**\(time.string(from: e.date))**\n\n"
             if e.kind == .hint {
@@ -725,7 +725,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         do {
             try md.write(to: url, atomically: true, encoding: .utf8)
-            model.flash("Збережено: \(url.lastPathComponent)")
+            model.flash("Saved: \(url.lastPathComponent)")
         } catch {
             model.status = .error(error.localizedDescription)
         }

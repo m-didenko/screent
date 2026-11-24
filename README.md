@@ -88,7 +88,7 @@ tail -f ~/Library/Logs/Screent.log
 3. **Pick a mode** with the toggle in the panel header:
    - **Button:** press **⌥Space**, or the *Translate* button.
    - **Auto:** the region is checked every 0.8 s. Text is sent once it has stopped changing, or after about 24 new words.
-4. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath. The feed follows the newest text. Scroll up to read history and autoscroll pauses. A ↓ button appears, marked **Нове** ("new") when something new arrives. Click it, or scroll back to the bottom, to follow again.
+4. **Read the translation** in the panel. The latest line is bright and older ones fade. Speaker names are highlighted, and notes on terms appear underneath. The feed follows the newest text. Scroll up to read history and autoscroll pauses. A ↓ button appears, marked **New** when something new arrives. Click it, or scroll back to the bottom, to follow again.
 
 | Shortcut | Action |
 |---|---|
@@ -108,13 +108,13 @@ tail -f ~/Library/Logs/Screent.log
 | ⚪ grey | Paused |
 | 🔴 red | Error. The message is shown at the bottom of the panel. |
 
-**Panel header:** pause, mode toggle, 🔔 mute/unmute name alerts, select region, ↺ new session, settings (sliders icon) and quit (power icon).
+**Panel header:** status (LIVE / THINKING / PAUSED / ERROR), pause, Button/Auto toggle, 🔔 mute/unmute name alerts, select region, ↺ new session, settings (sliders icon) and quit (power icon).
 
 **Settings section** (opens under the header):
 - **Text size:** size of the feed, hint and mention text, 0–100%. The default is 50%, which is the base size; 0% is 0.7× and 100% is 1.6×.
 - **Panel background:** opacity of the background, 10–100%, default 100%. At 100% the background is almost solid dark, so text is readable over anything. Lower values reveal more of the glass behind it, and the text gets a soft shadow.
 - **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%, default 100%. It never affects OCR.
-- **Translation language:** Українська (Ukrainian) or Русский (Russian). You can switch mid-session without losing context: each request to Claude carries the target language.
+- **Translate to:** Ukrainian or Russian. You can switch mid-session without losing context: each request to Claude carries the target language.
 - **Features:** **Translation** and **Hints** toggle independently. See [Translation, English mode and AI hints](#translation-english-mode-and-ai-hints).
 - **My name:** your name and its variants, comma-separated, e.g. `Nick, Nik, Нік`. It's used for name alerts.
 - **Original**, **Quit**.
@@ -129,7 +129,7 @@ tail -f ~/Library/Logs/Screent.log
 | Show region frame | Shows or hides the highlight around the captured region |
 | Show original | Shows or hides the English text above each translation |
 
-> The interface is currently in Ukrainian. Translation, notes, hints and mention cards use the language chosen in settings.
+> The interface is in English, since you're in an English-speaking meeting anyway. Translation, notes, hints and mention cards use the language chosen under **Translate to** (Ukrainian or Russian).
 
 ## Translation, English mode and AI hints
 
@@ -159,7 +159,7 @@ Name alerts work in **auto mode** only, because the region has to be watched con
 1. Open settings (sliders icon) and fill in **My name** with your name and the ways speech-to-text tends to spell it, e.g. `Nick, Nik, Нік`. Matching is phonetic: `Mykyta` also catches `Mikita`, `Mykita` and `Микита`, and `Nick` catches `Nic`, `Nik`, `Нік` and `Nick's`. As a backup, Claude knows your name in auto mode. If it sees you were addressed under a spelling the local matcher missed (e.g. `Nikita`), it raises the alert itself.
 2. When your name appears in the captions, Screent:
    - plays a sound and flashes the region frame;
-   - brings the panel to the front and shows a **"ВАС ЗГАДАЛИ" ("you were mentioned")** card with the line that mentioned you;
+   - brings the panel to the front and shows a **"YOU WERE MENTIONED"** card with the line that mentioned you;
    - asks Claude, in the same session and so with the full meeting context, who addressed you, what they want, and what you could answer (`→ …`).
 3. To silence alerts quickly, for example while you're presenting, click the 🔔 bell in the panel header. It turns into a crossed-out bell, and clicking it again turns alerts back on. The setting is remembered.
 4. Close the card with ×. After an alert, Screent waits 20 s before alerting again, so it doesn't ring on every caption line.

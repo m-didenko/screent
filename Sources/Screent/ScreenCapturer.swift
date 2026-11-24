@@ -9,11 +9,11 @@ enum CaptureError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .permission:
-            return "Немає дозволу на запис екрана: Системні параметри → Конфіденційність → Запис екрана"
+            return "No Screen Recording permission: System Settings → Privacy & Security → Screen & System Audio Recording"
         case .noScreen:
-            return "Область поза межами екранів — виділіть її знову"
+            return "The region is off-screen — select it again"
         case .noDisplay:
-            return "Не вдалося знайти дисплей для захоплення"
+            return "Could not find the display to capture"
         }
     }
 }

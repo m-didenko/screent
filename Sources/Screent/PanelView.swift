@@ -144,19 +144,19 @@ private struct Header: View {
                 .animation(.easeOut(duration: 0.2), value: statusLabel)
             Spacer(minLength: 8)
             IconButton(symbol: model.paused ? "play.fill" : "pause.fill",
-                       help: model.paused ? "Відновити переклад (⌥⇧P)" : "Пауза (⌥⇧P)",
+                       help: model.paused ? "Resume (⌥⇧P)" : "Pause (⌥⇧P)",
                        tint: model.paused ? Theme.ok : nil,
                        action: model.onTogglePause)
             ModeToggle(mode: model.mode, onChange: model.onSetMode)
             IconButton(symbol: bellSymbol, help: bellHelp, tint: bellTint,
-                       action: { model.alertsMuted.toggle(); model.flash(model.alertsMuted ? "Сповіщення вимкнено" : "Сповіщення увімкнено") })
-            IconButton(symbol: "viewfinder", help: "Виділити область (⌥⇧R)", action: model.onSelectRegion)
-            IconButton(symbol: "arrow.counterclockwise", help: "Нова сесія — очистити стрічку й контекст Claude",
+                       action: { model.alertsMuted.toggle(); model.flash(model.alertsMuted ? "Name alerts muted" : "Name alerts on") })
+            IconButton(symbol: "viewfinder", help: "Select region (⌥⇧R)", action: model.onSelectRegion)
+            IconButton(symbol: "arrow.counterclockwise", help: "New session — clear the feed and Claude's context",
                        action: model.onNewSession)
-            IconButton(symbol: "slider.horizontal.3", help: "Налаштування",
+            IconButton(symbol: "slider.horizontal.3", help: "Settings",
                        tint: model.showSettings ? Theme.accent : nil,
                        action: { model.showSettings.toggle() })
-            IconButton(symbol: "power", help: "Вийти з Screent", action: model.onQuit)
+            IconButton(symbol: "power", help: "Quit Screent", action: model.onQuit)
         }
         .padding(.leading, 14)
         .padding(.trailing, 8)
@@ -171,18 +171,18 @@ private struct Header: View {
         return hasName ? Theme.accent : nil
     }
     private var bellHelp: String {
-        if model.alertsMuted { return "Сповіщення про згадку імені вимкнено — увімкнути" }
-        return hasName ? "Вимкнути сповіщення про згадку імені"
-                       : "Сповіщення: вкажіть своє ім'я в налаштуваннях (працює в авто-режимі)"
+        if model.alertsMuted { return "Name alerts are muted — click to turn on" }
+        return hasName ? "Mute name alerts"
+                       : "Name alerts: set your name in settings (works in auto mode)"
     }
 
     private var statusLabel: String {
         switch model.status {
-        case .idle: return "ПРАЦЮЄ"
-        case .listening: return "ПРАЦЮЄ"
-        case .working: return "ПЕРЕКЛАДАЮ"
-        case .paused: return "ПАУЗА"
-        case .error: return "ПОМИЛКА"
+        case .idle: return "LIVE"
+        case .listening: return "LIVE"
+        case .working: return "THINKING"
+        case .paused: return "PAUSED"
+        case .error: return "ERROR"
         }
     }
 
@@ -236,8 +236,8 @@ private struct ModeToggle: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            segment(.manual, "Кнопка")
-            segment(.auto, "Авто")
+            segment(.manual, "Button")
+            segment(.auto, "Auto")
         }
         .padding(2)
         .background(Capsule().fill(.white.opacity(0.06)))
@@ -297,35 +297,35 @@ private struct SettingsStrip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Text("Функції")
+                Text("Features")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.55))
                     .frame(width: 92, alignment: .leading)
-                FeatureChip(title: "Переклад", symbol: "character.bubble", color: Theme.accent,
+                FeatureChip(title: "Translation", symbol: "character.bubble", color: Theme.accent,
                             isOn: $model.translateEnabled)
-                    .help("Вимкнено — англійський режим: текст і підказки англійською")
-                FeatureChip(title: "Підказки", symbol: "lightbulb", color: Theme.hint,
+                    .help("Off = English mode: captions and hints in English")
+                FeatureChip(title: "Hints", symbol: "lightbulb", color: Theme.hint,
                             isOn: $model.hintsEnabled)
-                    .help("AI радить, що сказати на мітингу (англійською + переклад)")
+                    .help("AI suggests what to say in the meeting (English + translation)")
                 Spacer()
             }
             HStack(spacing: 10) {
-                Text("Мова перекладу")
+                Text("Translate to")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.55))
                     .frame(width: 92, alignment: .leading)
                 LanguageToggle(selection: $model.targetLanguage)
                     .disabled(!model.translateEnabled)
                     .opacity(model.translateEnabled ? 1 : 0.4)
-                    .help(model.translateEnabled ? "Мову можна змінити посеред сесії — контекст збережеться"
-                                                 : "Увімкніть переклад, щоб обрати мову")
+                    .help(model.translateEnabled ? "You can switch mid-session — context is kept"
+                                                 : "Turn on Translation to choose a language")
                 Spacer()
             }
-            SliderRow(title: "Розмір тексту", value: $model.textSize, range: 0...1)
-            SliderRow(title: "Фон панелі", value: $model.panelOpacity, range: 0.1...1)
-            SliderRow(title: "Підсвітка зони", value: $model.regionHighlight, range: 0...1)
+            SliderRow(title: "Text size", value: $model.textSize, range: 0...1)
+            SliderRow(title: "Background", value: $model.panelOpacity, range: 0.1...1)
+            SliderRow(title: "Region highlight", value: $model.regionHighlight, range: 0...1)
             HStack(spacing: 10) {
-                Text("Моє ім'я")
+                Text("My name")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.55))
                     .frame(width: 92, alignment: .leading)
@@ -336,19 +336,19 @@ private struct SettingsStrip: View {
                     .frame(height: 24)
                     .background(RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.06)))
                     .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.white.opacity(0.1), lineWidth: 1))
-                    .help("Варіанти імені через кому. В авто-режимі, коли вас згадають, пролунає звук і з'явиться контекст.")
+                    .help("Name variants, comma-separated. In auto mode you get a sound and a context card when someone mentions you.")
                 Image(systemName: "bell.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(model.myNames.trimmingCharacters(in: .whitespaces).isEmpty
                                      ? .white.opacity(0.25) : Theme.accent)
                     .frame(width: 34)
-                    .help("Сповіщення працюють лише в авто-режимі")
+                    .help("Name alerts work in auto mode only")
             }
             HStack(spacing: 8) {
-                PillButton(title: "Оригінал", symbol: model.showOriginal ? "eye" : "eye.slash",
+                PillButton(title: "Original", symbol: model.showOriginal ? "eye" : "eye.slash",
                            active: model.showOriginal, action: model.onToggleOriginal)
                 Spacer()
-                PillButton(title: "Вийти", symbol: "power", tint: Theme.danger, action: model.onQuit)
+                PillButton(title: "Quit", symbol: "power", tint: Theme.danger, action: model.onQuit)
             }
         }
         .padding(.horizontal, 14)
@@ -471,7 +471,7 @@ private struct HintCard: View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 6) {
                 Image(systemName: "lightbulb.fill").font(.system(size: 10))
-                Text(entry.isStreaming && entry.translation.isEmpty ? "ДУМАЮ…" : "ПІДКАЗКА")
+                Text(entry.isStreaming && entry.translation.isEmpty ? "THINKING…" : "HINT")
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .tracking(1.6)
                 Spacer()
@@ -484,7 +484,7 @@ private struct HintCard: View {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc").font(.system(size: 10))
                     }
                     .buttonStyle(.plain)
-                    .help("Скопіювати англійську фразу")
+                    .help("Copy the English phrase")
                 }
             }
             .foregroundStyle(Theme.hint)
@@ -535,7 +535,7 @@ private struct MentionBanner: View {
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
-                    Text("ВАС ЗГАДАЛИ")
+                    Text("YOU WERE MENTIONED")
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
                         .tracking(1.6)
                         .foregroundStyle(Theme.accent)
@@ -549,7 +549,7 @@ private struct MentionBanner: View {
                     .lineLimit(2)
                 Group {
                     if mention.context.isEmpty && mention.isStreaming {
-                        Text("Збираю контекст…").foregroundColor(.white.opacity(0.45))
+                        Text("Getting context…").foregroundColor(.white.opacity(0.45))
                     } else {
                         Text(mention.context.trimmingCharacters(in: .whitespacesAndNewlines))
                             + (mention.isStreaming ? Text(" ▍").foregroundColor(Theme.accent) : Text(""))
@@ -571,7 +571,7 @@ private struct MentionBanner: View {
                     .contentShape(Circle())
             }
             .buttonStyle(PressStyle())
-            .help("Закрити")
+            .help("Dismiss")
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.accent.opacity(0.12)))
@@ -653,7 +653,7 @@ private struct Feed: View {
                         HStack(spacing: 5) {
                             Image(systemName: "arrow.down").font(.system(size: 11, weight: .semibold))
                             if hasNew {
-                                Text("Нове").font(.system(size: 11, weight: .semibold))
+                                Text("New").font(.system(size: 11, weight: .semibold))
                             }
                         }
                         .foregroundStyle(.black.opacity(0.85))
@@ -663,7 +663,7 @@ private struct Feed: View {
                         .shadow(color: .black.opacity(0.4), radius: 8, y: 2)
                     }
                     .buttonStyle(PressStyle())
-                    .help("До останнього повідомлення — знову автопрокрутка")
+                    .help("Jump to the latest message and resume autoscroll")
                     .padding(14)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
                 }
@@ -792,15 +792,15 @@ private struct EmptyState: View {
                 .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.white.opacity(0.3))
             Text(model.hasRegion
-                 ? (model.mode == .auto ? "Стежу за областю — переклад з'явиться тут"
-                                        : "Натисніть ⌥Space, щоб перекласти")
-                 : "Спочатку виділіть область із текстом")
+                 ? (model.mode == .auto ? "Watching the region — text will appear here"
+                                        : "Press ⌥Space to capture")
+                 : "First, select the region with the text")
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.45))
                 .multilineTextAlignment(.center)
             if !model.hasRegion {
                 Button(action: model.onSelectRegion) {
-                    Label("Виділити область", systemImage: "viewfinder")
+                    Label("Select Region", systemImage: "viewfinder")
                         .font(.system(size: 12, weight: .medium))
                         .padding(.horizontal, 14)
                         .frame(height: 28)
@@ -823,13 +823,13 @@ private struct Footer: View {
     private var hint: (String, Color) {
         if case .error(let message) = model.status { return (message, Theme.danger) }
         if let notice = model.notice { return (notice, .white.opacity(0.7)) }
-        let what = model.translateEnabled ? "Переклад" : "Текст"
+        let what = model.translateEnabled ? "Translation" : "Text"
         if model.mode == .auto {
-            return (model.hintsEnabled ? "\(what) і підказки з'являються під час розмови"
-                                       : "\(what) з'являється, щойно текст зміниться", .white.opacity(0.38))
+            return (model.hintsEnabled ? "\(what) and hints appear as people talk"
+                                       : "\(what) appears as soon as the text changes", .white.opacity(0.38))
         }
-        return (model.hintsEnabled ? "⌥Space — \(model.translateEnabled ? "переклад" : "текст")  ·  ⌥⇧I — підказка"
-                                   : "⌥Space — \(model.translateEnabled ? "перекласти" : "захопити")  ·  ⌥⇧P — пауза",
+        return (model.hintsEnabled ? "⌥Space — \(model.translateEnabled ? "translate" : "capture")  ·  ⌥⇧I — hint"
+                                   : "⌥Space — \(model.translateEnabled ? "translate" : "capture")  ·  ⌥⇧P — pause",
                 .white.opacity(0.38))
     }
 
@@ -845,7 +845,7 @@ private struct Footer: View {
                 Button(action: model.onHint) {
                     HStack(spacing: 6) {
                         Image(systemName: "lightbulb.fill").font(.system(size: 10))
-                        Text("Підказка").font(.system(size: 12, weight: .semibold))
+                        Text("Hint").font(.system(size: 12, weight: .semibold))
                     }
                     .foregroundStyle(Theme.hint)
                     .padding(.horizontal, 12)
@@ -854,7 +854,7 @@ private struct Footer: View {
                     .overlay(Capsule().strokeBorder(Theme.hint.opacity(0.3), lineWidth: 1))
                 }
                 .buttonStyle(PressStyle())
-                .help("Підказка: що сказати зараз (⌥⇧I)")
+                .help("Hint: what to say now (⌥⇧I)")
                 .disabled(!model.hasRegion || model.paused)
                 .opacity(model.hasRegion && !model.paused ? 1 : 0.4)
             }
@@ -862,8 +862,8 @@ private struct Footer: View {
                 Button(action: model.onTranslate) {
                     HStack(spacing: 8) {
                         Text(model.translateEnabled
-                             ? (model.status == .working ? "Перекладаю" : "Перекласти")
-                             : "Захопити")
+                             ? (model.status == .working ? "Translating" : "Translate")
+                             : "Capture")
                             .font(.system(size: 12, weight: .semibold))
                         Text("⌥␣")
                             .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -883,7 +883,7 @@ private struct Footer: View {
                 Button(action: model.onTogglePause) {
                     HStack(spacing: 6) {
                         Image(systemName: model.paused ? "play.fill" : "pause.fill").font(.system(size: 9))
-                        Text(model.paused ? "ПАУЗА" : "АВТО")
+                        Text(model.paused ? "PAUSED" : "AUTO")
                             .font(.system(size: 10, weight: .semibold, design: .monospaced)).tracking(1.6)
                     }
                     .foregroundStyle(tone)
@@ -893,7 +893,7 @@ private struct Footer: View {
                     .overlay(Capsule().strokeBorder(tone.opacity(0.25), lineWidth: 1))
                 }
                 .buttonStyle(PressStyle())
-                .help(model.paused ? "Відновити (⌥⇧P)" : "Пауза (⌥⇧P)")
+                .help(model.paused ? "Resume (⌥⇧P)" : "Pause (⌥⇧P)")
             }
         }
         .padding(.horizontal, 14)

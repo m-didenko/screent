@@ -26,7 +26,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSScreenCaptureUsageDescription</key><string>Screent читає текст із вибраної області екрана, щоб перекласти його.</string>
+  <key>NSScreenCaptureUsageDescription</key><string>Screent reads text from the selected screen region to translate it.</string>
 </dict>
 </plist>
 PLIST
@@ -38,10 +38,10 @@ if [[ -z "$IDENTITY" ]] && security find-identity -p codesigning | grep -q "Scre
 fi
 if [[ -z "$IDENTITY" ]]; then
   IDENTITY="-"
-  echo "⚠︎ Ad-hoc підпис: після перезбирання доведеться знову дати дозвіл. Запустіть scripts/setup-signing.sh"
+  echo "⚠︎ Ad-hoc signature: Screen Recording access will reset after each rebuild. Run scripts/setup-signing.sh"
 fi
 codesign --force --sign "$IDENTITY" --identifier com.screent.app "$APP"
-echo "Готово: $APP"
+echo "Built: $APP"
 
 # --install: скопіювати в /Applications (стабільний шлях — macOS краще запам'ятовує дозвіл «Запис екрана»)
 if [[ " $* " == *" --install "* ]]; then
@@ -50,7 +50,7 @@ if [[ " $* " == *" --install "* ]]; then
   rm -rf /Applications/Screent.app
   cp -R "$APP" /Applications/Screent.app
   APP="/Applications/Screent.app"
-  echo "Встановлено: $APP"
+  echo "Installed: $APP"
 fi
 
 if [[ " $* " == *" --run "* ]]; then

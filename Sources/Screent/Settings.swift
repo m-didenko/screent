@@ -11,7 +11,7 @@ enum TargetLanguage: String, CaseIterable {
 
     /// Як мову називаємо в повідомленнях для Claude.
     var promptName: String { self == .uk ? "Ukrainian" : "Russian" }
-    var title: String { self == .uk ? "Українська" : "Русский" }
+    var title: String { self == .uk ? "Ukrainian" : "Russian" }
     var code: String { self == .uk ? "UA" : "RU" }
 }
 

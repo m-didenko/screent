@@ -145,7 +145,7 @@ final class ClaudeBridge {
                     self.process = nil
                     self.stdin = nil
                     let tail = self.stderrTail.trimmingCharacters(in: .whitespacesAndNewlines)
-                    self.onExit?(tail.isEmpty ? "код \(proc.terminationStatus)" : tail)
+                    self.onExit?(tail.isEmpty ? "exit code \(proc.terminationStatus)" : tail)
                 }
             }
         }
@@ -235,7 +235,7 @@ final class ClaudeBridge {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) else {
             throw NSError(domain: "Screent", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "Не знайдено claude CLI. Встановіть Claude Code."])
+                          userInfo: [NSLocalizedDescriptionKey: "claude CLI not found. Install Claude Code."])
         }
         return URL(fileURLWithPath: path)
     }

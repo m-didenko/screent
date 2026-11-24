@@ -4,7 +4,7 @@
 set -euo pipefail
 NAME="Screent Local Signing"
 if security find-identity -p codesigning | grep -q "$NAME"; then
-  echo "Сертифікат «$NAME» вже є."; exit 0
+  echo "Certificate \"$NAME\" already exists."; exit 0
 fi
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 cat > "$TMP/cfg.cnf" <<CNF
@@ -22,4 +22,4 @@ CNF
 /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -keyout "$TMP/key.pem" -out "$TMP/cert.pem" -days 3650 -config "$TMP/cfg.cnf"
 /usr/bin/openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" -out "$TMP/id.p12" -passout pass:screent -name "$NAME"
 security import "$TMP/id.p12" -k ~/Library/Keychains/login.keychain-db -P screent -T /usr/bin/codesign
-echo "Готово: «$NAME». Тепер: ./scripts/build-app.sh --install --run"
+echo "Done: \"$NAME\". Now run: ./scripts/build-app.sh --install --run"
