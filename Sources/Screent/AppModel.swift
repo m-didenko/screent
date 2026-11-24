@@ -28,6 +28,13 @@ final class AppModel: ObservableObject {
     @Published var hasRegion = AppSettings.shared.region != nil
     @Published var notice: String?
     @Published var paused = false
+    @Published var showSettings = false
+    @Published var panelOpacity = AppSettings.shared.panelOpacity {
+        didSet { AppSettings.shared.panelOpacity = panelOpacity }
+    }
+    @Published var regionHighlight = AppSettings.shared.regionHighlight {
+        didSet { AppSettings.shared.regionHighlight = regionHighlight; onRegionHighlight(regionHighlight) }
+    }
 
     var onTranslate: () -> Void = {}
     var onSelectRegion: () -> Void = {}
@@ -35,6 +42,8 @@ final class AppModel: ObservableObject {
     var onToggleOriginal: () -> Void = {}
     var onNewSession: () -> Void = {}
     var onTogglePause: () -> Void = {}
+    var onRegionHighlight: (Double) -> Void = { _ in }
+    var onQuit: () -> Void = {}
 
     private var noticeTask: Task<Void, Never>?
 

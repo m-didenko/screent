@@ -17,7 +17,7 @@ final class TranslationPanel: NSPanel {
         hasShadow = true
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        minSize = NSSize(width: 320, height: 180)
+        minSize = NSSize(width: 360, height: 180)
         appearance = NSAppearance(named: .darkAqua)
 
         contentView = FirstMouseHostingView(rootView: PanelView().environmentObject(model))
@@ -44,13 +44,24 @@ struct PanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             Header()
+            if model.showSettings {
+                SettingsStrip()
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
             Rectangle().fill(.white.opacity(0.07)).frame(height: 1)
             if model.entries.isEmpty { EmptyState() } else { Feed() }
             Footer()
         }
-        .background(VisualEffect().clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous)))
+        .background(
+            VisualEffect()
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .opacity(model.panelOpacity)
+        )
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .strokeBorder(.white.opacity(0.1), lineWidth: 1))
+            .strokeBorder(.white.opacity(0.04 + 0.06 * model.panelOpacity), lineWidth: 1))
+        // На прозорому фоні тексту потрібна тінь, щоб читатися поверх будь-чого.
+        .shadow(color: .black.opacity(0.6 * (1 - model.panelOpacity)), radius: 2)
+        .animation(.easeOut(duration: 0.2), value: model.showSettings)
         .preferredColorScheme(.dark)
     }
 }
@@ -76,12 +87,11 @@ private struct Header: View {
                        tint: model.paused ? Theme.ok : nil,
                        action: model.onTogglePause)
             ModeToggle(mode: model.mode, onChange: model.onSetMode)
-            IconButton(symbol: model.showOriginal ? "text.quote" : "text.badge.minus",
-                       help: model.showOriginal ? "Сховати оригінал" : "Показати оригінал",
-                       action: model.onToggleOriginal)
             IconButton(symbol: "viewfinder", help: "Виділити область (⌥⇧R)", action: model.onSelectRegion)
-            IconButton(symbol: "arrow.counterclockwise", help: "Нова сесія — очистити стрічку й контекст Claude",
-                       action: model.onNewSession)
+            IconButton(symbol: "slider.horizontal.3", help: "Налаштування",
+                       tint: model.showSettings ? Theme.accent : nil,
+                       action: { model.showSettings.toggle() })
+            IconButton(symbol: "power", help: "Вийти з Screent", action: model.onQuit)
         }
         .padding(.leading, 14)
         .padding(.trailing, 8)
@@ -195,6 +205,76 @@ private struct IconButton: View {
         }
         .buttonStyle(.plain)
         .help(help)
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.15), value: hover)
+    }
+}
+
+// MARK: - Налаштування
+
+private struct SettingsStrip: View {
+    @EnvironmentObject var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SliderRow(title: "Фон панелі", value: $model.panelOpacity, range: 0.1...1)
+            SliderRow(title: "Підсвітка зони", value: $model.regionHighlight, range: 0...1)
+            HStack(spacing: 8) {
+                PillButton(title: "Оригінал", symbol: model.showOriginal ? "eye" : "eye.slash",
+                           active: model.showOriginal, action: model.onToggleOriginal)
+                PillButton(title: "Нова сесія", symbol: "arrow.counterclockwise", action: model.onNewSession)
+                Spacer()
+                PillButton(title: "Вийти", symbol: "power", tint: Theme.danger, action: model.onQuit)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 4)
+        .padding(.bottom, 12)
+    }
+}
+
+private struct SliderRow: View {
+    let title: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(title)
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.55))
+                .frame(width: 92, alignment: .leading)
+            Slider(value: $value, in: range)
+                .controlSize(.mini)
+                .tint(Theme.accent)
+            Text("\(Int((value * 100).rounded()))%")
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.45))
+                .frame(width: 34, alignment: .trailing)
+        }
+    }
+}
+
+private struct PillButton: View {
+    let title: String
+    let symbol: String
+    var active = false
+    var tint: Color? = nil
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(tint ?? .white.opacity(active || hover ? 0.85 : 0.6))
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(Capsule().fill((tint ?? .white).opacity(hover ? 0.14 : 0.07)))
+                .overlay(Capsule().strokeBorder((tint ?? .white).opacity(0.12), lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressStyle())
         .onHover { hover = $0 }
         .animation(.easeOut(duration: 0.15), value: hover)
     }

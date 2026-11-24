@@ -48,6 +48,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onToggleOriginal = { [weak self] in self?.toggleOriginal() }
         model.onNewSession = { [weak self] in self?.menuNewSession() }
         model.onTogglePause = { [weak self] in self?.togglePause() }
+        model.onRegionHighlight = { [weak self] in self?.frameWindow.setHighlight($0) }
+        model.onQuit = { NSApp.terminate(nil) }
+        frameWindow.setHighlight(settings.regionHighlight)
 
         panel = TranslationPanel(model: model)
         panel.orderFrontRegardless()

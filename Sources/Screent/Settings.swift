@@ -31,6 +31,18 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "showFrame") }
     }
 
+    /// Непрозорість фону панелі: 0.1…1.
+    var panelOpacity: Double {
+        get { defaults.object(forKey: "panelOpacity") as? Double ?? 1.0 }
+        set { defaults.set(newValue, forKey: "panelOpacity") }
+    }
+
+    /// Яскравість підсвітки зони захоплення: 0…1.
+    var regionHighlight: Double {
+        get { defaults.object(forKey: "regionHighlight") as? Double ?? 0.5 }
+        set { defaults.set(newValue, forKey: "regionHighlight") }
+    }
+
     /// Область захоплення в глобальних координатах AppKit (початок — лівий нижній кут).
     var region: CGRect? {
         get {

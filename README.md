@@ -103,7 +103,12 @@ tail -f ~/Library/Logs/Screent.log
 | ⚪ grey | Paused |
 | 🔴 red | Error. The message is shown at the bottom of the panel. |
 
-**Panel buttons:** pause, show/hide the original English, select region, and ↺ start a new session.
+**Panel header:** pause, mode toggle, select region, settings (sliders icon) and quit (power icon).
+
+**Settings section** (opens under the header):
+- **Panel background:** opacity of the glass background, 10–100%. The text stays sharp and gets a soft shadow when the background is very transparent.
+- **Region highlight:** brightness of the grey fill and corner marks over the captured region, 0–100%. It never affects OCR.
+- **Original**, **New session**, **Quit**.
 
 **Menu bar menu:**
 
