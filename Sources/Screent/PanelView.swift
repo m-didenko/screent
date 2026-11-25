@@ -308,9 +308,6 @@ private struct SettingsStrip: View {
                 FeatureChip(title: "Translation", symbol: "character.bubble", color: Theme.accent,
                             isOn: $model.translateEnabled)
                     .help("Off = English mode: captions and hints in English")
-                FeatureChip(title: "Hints", symbol: "lightbulb", color: Theme.hint,
-                            isOn: $model.hintsEnabled)
-                    .help("AI suggests what to say in the meeting (English + translation)")
                 Spacer()
             }
             HStack(spacing: 10) {
@@ -734,10 +731,41 @@ private struct EntryView: View {
     let isLatest: Bool
     let showOriginal: Bool
 
+    @EnvironmentObject private var model: AppModel
+    @State private var hovering = false
+
     var body: some View {
+        if entry.kind == .hint {
+            HintCard(entry: entry, isLatest: isLatest)
+        } else {
+            HStack(alignment: .top, spacing: 8) {
+                content
+                hintButton
+            }
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+        }
+    }
+
+    /// Одноразова підказка: що сказати у відповідь на цю репліку.
+    private var hintButton: some View {
+        Button { model.onHint(entry.id) } label: {
+            Image(systemName: hovering ? "lightbulb.fill" : "lightbulb")
+                .font(.system(size: 11 * ts, weight: .medium))
+                .foregroundStyle(Theme.hint.opacity(hovering ? 0.95 : 0.3))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(Theme.hint.opacity(hovering ? 0.14 : 0)))
+        }
+        .buttonStyle(PressStyle())
+        .help("Hint: what you could say about this")
+        .disabled(entry.isStreaming)
+        .opacity(entry.isStreaming ? 0 : 1)
+    }
+
+    @ViewBuilder private var content: some View {
         switch entry.kind {
         case .hint:
-            HintCard(entry: entry, isLatest: isLatest)
+            EmptyView()
         case .caption:
             Text(entry.original)
                 .font(.system(size: 15 * ts))
@@ -874,11 +902,9 @@ private struct Footer: View {
         if let notice = model.notice { return (notice, .white.opacity(0.7)) }
         let what = model.translateEnabled ? "Translation" : "Text"
         if model.mode == .auto {
-            return (model.hintsEnabled ? "\(what) and hints appear as people talk"
-                                       : "\(what) appears as soon as the text changes", .white.opacity(0.38))
+            return ("\(what) appears as each thought is finished  ·  💡 next to a line — hint", .white.opacity(0.38))
         }
-        return (model.hintsEnabled ? "⌥Space — \(model.translateEnabled ? "translate" : "capture")  ·  ⌥⇧I — hint"
-                                   : "⌥Space — \(model.translateEnabled ? "translate" : "capture")  ·  ⌥⇧P — pause",
+        return ("⌥Space — \(model.translateEnabled ? "translate" : "capture")  ·  💡 next to a line — hint",
                 .white.opacity(0.38))
     }
 
@@ -890,23 +916,6 @@ private struct Footer: View {
                 .lineLimit(2)
                 .help(hint.0)
             Spacer(minLength: 8)
-            if model.hintsEnabled {
-                Button(action: model.onHint) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "lightbulb.fill").font(.system(size: 10))
-                        Text("Hint").font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(Theme.hint)
-                    .padding(.horizontal, 12)
-                    .frame(height: 30)
-                    .background(Capsule().fill(Theme.hint.opacity(0.12)))
-                    .overlay(Capsule().strokeBorder(Theme.hint.opacity(0.3), lineWidth: 1))
-                }
-                .buttonStyle(PressStyle())
-                .help("Hint: what to say now (⌥⇧I)")
-                .disabled(!model.hasRegion || model.paused)
-                .opacity(model.hasRegion && !model.paused ? 1 : 0.4)
-            }
             if model.mode == .manual {
                 Button(action: model.onTranslate) {
                     HStack(spacing: 8) {

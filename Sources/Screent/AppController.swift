@@ -53,13 +53,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var modelSwitchPending = false
 
     // AI-підказки
-    private var captionsSinceHint = ""
-    private var wordsSinceHint = 0
-    private var lastHintAt: Date?
-    private var hintPending = false
+    /// Підказку просять для конкретного запису; поки Claude зайнятий — вона чекає в черзі.
+    private var hintPendingFor: UUID?
     private var hintIndex: Int?
-    private static let autoHintWords = 60
-    private static let autoHintInterval: TimeInterval = 45
 
     /// Англійський режим: без перекладу, підказки й контекст — англійською.
     private var english: Bool { !settings.translateEnabled }
@@ -77,7 +73,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onQuit = { NSApp.terminate(nil) }
         model.onMinimize = { [weak self] in self?.minimizePanel() }
         model.onDismissMention = { [weak self] in self?.model.mention = nil }
-        model.onHint = { [weak self] in self?.hintNow() }
+        model.onHint = { [weak self] in self?.requestHint(for: $0) }
         model.onSelectModel = { [weak self] in self?.switchModel($0) }
         frameWindow.setHighlight(settings.regionHighlight)
 
@@ -118,9 +114,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         hk.register(id: 5, keyCode: kVK_ANSI_P, modifiers: optionKey | shiftKey) { [weak self] in
             MainActor.assumeIsolated { self?.togglePause() }
         }
-        hk.register(id: 6, keyCode: kVK_ANSI_I, modifiers: optionKey | shiftKey) { [weak self] in
-            MainActor.assumeIsolated { self?.hintNow() }
-        }
         hk.register(id: 4, keyCode: kVK_ANSI_H, modifiers: optionKey | shiftKey) { [weak self] in
             MainActor.assumeIsolated { self?.togglePanel() }
         }
@@ -141,10 +134,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lastScanned = ""
         recentCaptions = ""
         model.mention = nil
-        captionsSinceHint = ""
-        wordsSinceHint = 0
-        lastHintAt = nil
-        hintPending = false
+        hintPendingFor = nil
         hintIndex = nil
         do {
             try bridge.start(model: settings.model)
@@ -162,7 +152,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         busy = false
         turnKind = .translation
         mentionPending = false
-        hintPending = false
+        hintPendingFor = nil
         model.mention?.isStreaming = false
         if let i = hintIndex, model.entries.indices.contains(i) { model.entries[i].isStreaming = false }
         hintIndex = nil
@@ -206,7 +196,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !value && !panel.isVisible { showPanel() } // відновлення перекладу завжди повертає панель
         paused = value
         model.paused = value
-        if value { pending = false; hintPending = false }
+        if value { pending = false }
         frameWindow.setActive(settings.mode == .auto && !value)
         frameWindow.setPaused(value)
         restoreStatus()
@@ -225,19 +215,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { await runCapture(region: region, manual: true) }
     }
 
-    /// Підказка просто зараз: свіжий знімок → підказка.
-    private func hintNow() {
-        guard settings.hintsEnabled else { model.flash("Turn on Hints in settings"); return }
-        if paused { model.flash("Paused — press ▶︎ or ⌥⇧P"); return }
-        guard let region = settings.region else { selectRegion(); return }
-        if busy || capturing {
-            hintPending = true
-            model.flash("Hint queued — right after the current reply")
-            return
-        }
-        Task { await runCapture(region: region, manual: true, forHint: true) }
-    }
-
     private func autoPoll() {
         guard !paused, !capturing, !selector.isActive, let region = settings.region else { return }
         // Без дозволу не смикаємо систему щотакту — повторюємо раз на 5 с.
@@ -245,7 +222,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task { await runCapture(region: region, manual: false) }
     }
 
-    private func runCapture(region: CGRect, manual: Bool, forHint: Bool = false) async {
+    private func runCapture(region: CGRect, manual: Bool) async {
         capturing = true
         defer { capturing = false }
         if manual {
@@ -257,11 +234,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let text = try await OCR.recognize(image).joined(separator: "\n")
             permissionBlockedAt = nil
             if case .error = model.status { restoreStatus() }
-            if forHint {
-                ingest(text)
-                requestHint(auto: false)
-                if !busy { restoreStatus() }
-            } else if manual { handleManual(text) } else { handleAuto(text) }
+            if manual { handleManual(text) } else { handleAuto(text) }
         } catch {
             if case CaptureError.permission = error { permissionBlockedAt = Date() }
             model.status = .error(error.localizedDescription)
@@ -287,13 +260,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if norm == lastPolled { stableTicks += 1 } else { stableTicks = 0; lastPolled = norm }
         guard !busy, !paused, settings.mode == .auto else { return }
 
-        // Авто-підказка: назбиралося достатньо нового тексту, розмова «видихнула» і минуло досить часу.
-        if settings.hintsEnabled, stableTicks >= 1, wordsSinceHint >= Self.autoHintWords,
-           lastHintAt.map({ Date().timeIntervalSince($0) >= Self.autoHintInterval }) ?? true {
-            requestHint(auto: true)
-            return
-        }
-
         // Accumulate until the new text is a finished thought (see SentenceGate).
         let diff = TextDiffer.diff(previous: lastSentText, current: text)
         guard !diff.isEmpty else { return }
@@ -318,8 +284,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         lastScanned = text
         guard !diff.isEmpty else { return }
         recentCaptions = String((recentCaptions + "\n" + diff.text).suffix(1500))
-        captionsSinceHint = String((captionsSinceHint + "\n" + diff.text).suffix(3000))
-        wordsSinceHint += diff.wordCount
         checkMention(diff.text)
     }
 
@@ -436,35 +400,47 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: - Підказки
 
-    private func requestHint(auto: Bool) {
-        guard settings.hintsEnabled else { return }
-        if busy { hintPending = true; return }
-        hintPending = false
-        let captions = captionsSinceHint.trimmingCharacters(in: .whitespacesAndNewlines)
-        if auto && captions.isEmpty { return }
+    /// Одноразова підказка до конкретного запису: Claude бачить розмову до цього рядка включно.
+    private func requestHint(for id: UUID) {
+        if busy {
+            hintPendingFor = id
+            model.flash("Hint queued — right after the current reply")
+            return
+        }
+        hintPendingFor = nil
+        guard let i = model.entries.firstIndex(where: { $0.id == id }) else { return }
         if !bridge.isRunning {
             do { try bridge.start(model: settings.model) } catch {
                 model.status = .error(error.localizedDescription)
                 return
             }
         }
+        // Попередні репліки (в англійському режимі Claude їх ще не бачив) + обраний рядок.
+        let earlier = model.entries[..<i]
+            .filter { $0.kind != .hint }
+            .map { $0.original.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .joined(separator: "\n")
+        let line = model.entries[i].original.trimmingCharacters(in: .whitespacesAndNewlines)
         let message = """
-        HINT (\(auto ? "automatic" : "requested by the user")\(english ? ", LANGUAGE: English" : "")):
-        New captions since the last hint:
-        \(captions.isEmpty ? "(none — use the conversation so far)" : captions)
+        HINT (requested by the user for one line\(english ? ", LANGUAGE: English" : "")):
+        Earlier captions, oldest first:
+        \(earlier.isEmpty ? "(none)" : String(earlier.suffix(2500)))
+
+        The line the user wants help with:
+        «\(line)»
         """
-        model.entries.append(Entry(original: "", translation: "", isStreaming: true, kind: .hint))
-        hintIndex = model.entries.count - 1
-        captionsSinceHint = ""
-        wordsSinceHint = 0
-        lastHintAt = Date()
+        // Картка з'являється одразу під обраним записом (і під уже наявними підказками до нього).
+        var at = i + 1
+        while at < model.entries.count, model.entries[at].kind == .hint { at += 1 }
+        model.entries.insert(Entry(original: "", translation: "", isStreaming: true, kind: .hint), at: at)
+        hintIndex = at
         do {
             try bridge.send(envelope(message))
             turnKind = .hint
             busy = true
             model.status = .working
         } catch {
-            model.entries.removeLast()
+            model.entries.remove(at: at)
             hintIndex = nil
             model.status = .error(error.localizedDescription)
         }
@@ -474,7 +450,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func drainQueue() {
         if modelSwitchPending { applyModelSwitch() }
         if mentionPending { sendMention() }
-        else if hintPending { requestHint(auto: false) }
+        else if let id = hintPendingFor { requestHint(for: id) }
         else if pending { pending = false; translateNow() }
     }
 
@@ -567,7 +543,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if isError {
                     model.entries[i].translation = "TIP: " + (message ?? "Claude Code error")
                 } else if hint.isEmpty {
-                    model.entries.remove(at: i) // Claude вирішив, що додати нічого
+                    model.entries[i].translation = "TIP: Nothing useful to add here — try a line with a question or a problem."
                 }
             }
             hintIndex = nil

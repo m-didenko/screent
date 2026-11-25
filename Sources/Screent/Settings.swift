@@ -71,12 +71,6 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "translateEnabled") }
     }
 
-    /// AI-підказки: що сказати на мітингу.
-    var hintsEnabled: Bool {
-        get { defaults.object(forKey: "hintsEnabled") as? Bool ?? false }
-        set { defaults.set(newValue, forKey: "hintsEnabled") }
-    }
-
     /// Сповіщення про згадку імені вимкнено.
     var alertsMuted: Bool {
         get { defaults.bool(forKey: "alertsMuted") }
