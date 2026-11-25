@@ -27,14 +27,14 @@ region of the screen → ScreenCaptureKit → Apple Vision OCR (local) → only 
 
 Translation runs through your own Claude Code login. Each translation is a normal Claude Code request.
 
-## Install the prebuilt app (v1.0.0.2)
+## Install the prebuilt app (v1.0.0.3)
 
-A ready-to-run build is on the [Releases page](https://github.com/m-didenko/screent/releases/latest) and in [`releases/1.0.0.2`](releases/1.0.0.2). It's universal (Apple Silicon and Intel) and needs macOS 14+.
+A ready-to-run build is on the [Releases page](https://github.com/m-didenko/screent/releases/latest) and in [`releases/1.0.0.3`](releases/1.0.0.3). It's universal (Apple Silicon and Intel) and needs macOS 14+.
 
-1. **Download** [`Screent-1.0.0.2.zip`](https://github.com/m-didenko/screent/raw/main/releases/1.0.0.2/Screent-1.0.0.2.zip). Optionally, check it against the checksum in [`Screent-1.0.0.2.zip.sha256`](releases/1.0.0.2/Screent-1.0.0.2.zip.sha256):
+1. **Download** [`Screent-1.0.0.3.zip`](https://github.com/m-didenko/screent/raw/main/releases/1.0.0.3/Screent-1.0.0.3.zip). Optionally, check it against the checksum in [`Screent-1.0.0.3.zip.sha256`](releases/1.0.0.3/Screent-1.0.0.3.zip.sha256):
 
    ```bash
-   shasum -a 256 ~/Downloads/Screent-1.0.0.2.zip
+   shasum -a 256 ~/Downloads/Screent-1.0.0.3.zip
    ```
 
 2. **Unzip it** and move `Screent.app` to `/Applications`.
@@ -229,6 +229,7 @@ Claude Code runs in an empty working directory (`~/Library/Application Support/S
 
 | Version | Download | Notes |
 |---|---|---|
+| 1.0.0.3 | [`Screent-1.0.0.3.zip`](releases/1.0.0.3/Screent-1.0.0.3.zip) | Hints on demand (💡 next to any line, no automatic hints); quiet update notice with one-click self-update |
 | 1.0.0.2 | [`Screent-1.0.0.2.zip`](releases/1.0.0.2/Screent-1.0.0.2.zip) | Auto mode accumulates captions and translates finished thoughts instead of half-sentences |
 | 1.0.0.1 | [`Screent-1.0.0.1.zip`](releases/1.0.0.1/Screent-1.0.0.1.zip) | Fix "claude CLI not found" when Claude Code is installed with nvm (also volta, fnm, bun); the shell lookup now loads `~/.zshrc` and has a 5 s timeout |
 | 1.0.0.0 | [`Screent-1.0.0.0.zip`](releases/1.0.0.0/Screent-1.0.0.0.zip) | First release: translation (Ukrainian / Russian), English mode, AI hints, name alerts, minimize to the menu bar |
