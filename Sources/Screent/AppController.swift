@@ -75,6 +75,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.onDismissMention = { [weak self] in self?.model.mention = nil }
         model.onHint = { [weak self] in self?.requestHint(for: $0) }
         model.onSelectModel = { [weak self] in self?.switchModel($0) }
+        model.onUpdate = { [weak self] in self?.installUpdate() }
+        model.onDismissUpdate = { [weak self] in self?.dismissUpdate() }
         frameWindow.setHighlight(settings.regionHighlight)
 
         panel = TranslationPanel(model: model)
@@ -94,7 +96,57 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         applyMode(settings.mode)
         setPaused(true) // після запуску завжди на паузі — переклад починається лише за бажанням користувача
         Task.detached(priority: .utility) { await OCR.warmUp() }
+        scheduleUpdateChecks()
     }
+
+    // MARK: - Оновлення
+
+    private var availableUpdate: ReleaseInfo?
+    private var updateTimer: Timer?
+
+    /// Перша перевірка — за пів хвилини після запуску, далі раз на 6 годин. Без звуків і вікон.
+    private func scheduleUpdateChecks() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.checkForUpdate() }
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkForUpdate() }
+        }
+    }
+
+    private func checkForUpdate() {
+        Task {
+            guard let release = try? await UpdateChecker.latest(),
+                  UpdateChecker.isNewer(release.version, than: UpdateChecker.currentVersion) else { return }
+            availableUpdate = release
+            if settings.skippedUpdate != release.version, model.updateVersion != release.version {
+                model.updateVersion = release.version
+                Log.write("update available: \(release.version)")
+            }
+        }
+    }
+
+    private func dismissUpdate() {
+        settings.skippedUpdate = model.updateVersion
+        model.updateVersion = nil
+    }
+
+    private func installUpdate() {
+        guard let release = availableUpdate, !model.updating else { return }
+        model.updating = true
+        Task {
+            do {
+                try await UpdateInstaller.install(release)
+                UpdateInstaller.relaunch()
+                NSApp.terminate(nil)
+            } catch {
+                model.updating = false
+                Log.write("update failed: \(error.localizedDescription)")
+                model.flash("\(error.localizedDescription) — opening the download page")
+                NSWorkspace.shared.open(release.pageURL)
+            }
+        }
+    }
+
+    @objc private func menuUpdate() { installUpdate() }
 
     func applicationWillTerminate(_ notification: Notification) {
         bridge.stop()
@@ -702,6 +754,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("New Session", #selector(menuNewSession)))
         menu.addItem(item("Export Transcript…", #selector(menuExport)))
         menu.addItem(.separator())
+        if let update = availableUpdate {
+            menu.addItem(item("Update to \(update.version)…", #selector(menuUpdate)))
+        }
         menu.addItem(item("Quit Screent", #selector(menuQuit), key: "q"))
     }
 

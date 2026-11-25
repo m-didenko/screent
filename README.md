@@ -203,6 +203,15 @@ Name alerts work in **auto mode** only, because the region has to be watched con
 3. To silence alerts quickly, for example while you're presenting, click the 🔔 bell in the panel header. It turns into a crossed-out bell, and clicking it again turns alerts back on. The setting is remembered.
 4. Close the card with ×. After an alert, Screent waits 20 s before alerting again, so it doesn't ring on every caption line.
 
+## Updates
+
+Screent checks GitHub for a new release 30 s after launch and then every 6 hours. When one is out, a small, quiet **⤓ v1.x.x.x** pill appears at the bottom of the panel. There's no sound and no pop-up.
+
+- **Click the pill** to update. Screent downloads the release, checks that it's signed with the same certificate as your copy (so Screen Recording access is kept), replaces itself and restarts in a few seconds.
+- **×** hides the pill until the next version. The update stays available in the menu bar menu (**Update to …**).
+- **If the automatic update can't run** (for example a self-built copy with a different signature, or no write access to `/Applications`), Screent opens the release page so you can download it by hand.
+- The check is one anonymous request to the GitHub API. Nothing about you or your meetings is sent.
+
 ## How it works
 
 | File | Role |

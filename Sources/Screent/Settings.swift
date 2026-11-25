@@ -71,6 +71,12 @@ final class AppSettings {
         set { defaults.set(newValue, forKey: "translateEnabled") }
     }
 
+    /// Версія, оновлення до якої користувач сховав хрестиком (меню все одно його пропонує).
+    var skippedUpdate: String? {
+        get { defaults.string(forKey: "skippedUpdate") }
+        set { defaults.set(newValue, forKey: "skippedUpdate") }
+    }
+
     /// Сповіщення про згадку імені вимкнено.
     var alertsMuted: Bool {
         get { defaults.bool(forKey: "alertsMuted") }

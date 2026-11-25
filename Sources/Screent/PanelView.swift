@@ -916,6 +916,9 @@ private struct Footer: View {
                 .lineLimit(2)
                 .help(hint.0)
             Spacer(minLength: 8)
+            if let version = model.updateVersion {
+                UpdatePill(version: version)
+            }
             if model.mode == .manual {
                 Button(action: model.onTranslate) {
                     HStack(spacing: 8) {
@@ -957,6 +960,52 @@ private struct Footer: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(WindowDragArea())
+    }
+}
+
+/// Тиха плашка «є нова версія»: без звуку й анімацій, ховається хрестиком до наступної версії.
+private struct UpdatePill: View {
+    @EnvironmentObject var model: AppModel
+    let version: String
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: model.onUpdate) {
+                HStack(spacing: 5) {
+                    if model.updating {
+                        ProgressView().controlSize(.mini).tint(.white)
+                        Text("Updating…")
+                    } else {
+                        Image(systemName: "arrow.down.circle").font(.system(size: 10, weight: .semibold))
+                        Text("v\(version)")
+                    }
+                }
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(hovering ? 0.85 : 0.5))
+                .padding(.leading, 10)
+                .padding(.trailing, model.updating ? 10 : 4)
+                .frame(height: 24)
+            }
+            .buttonStyle(PressStyle())
+            .disabled(model.updating)
+            .help("Screent \(version) is available. Click to update — the app restarts in a few seconds.")
+            if !model.updating {
+                Button(action: model.onDismissUpdate) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white.opacity(hovering ? 0.6 : 0.3))
+                        .frame(width: 20, height: 24)
+                }
+                .buttonStyle(PressStyle())
+                .help("Hide until the next version (still in the menu bar menu)")
+                .padding(.trailing, 2)
+            }
+        }
+        .background(Capsule().fill(.white.opacity(hovering ? 0.1 : 0.05)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.1), lineWidth: 1))
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }
 

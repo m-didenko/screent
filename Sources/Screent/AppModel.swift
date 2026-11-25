@@ -46,6 +46,9 @@ final class AppModel: ObservableObject {
     @Published var showOriginal = AppSettings.shared.showOriginal
     @Published var hasRegion = AppSettings.shared.region != nil
     @Published var notice: String?
+    /// Доступна новіша версія (ненав'язлива плашка внизу панелі).
+    @Published var updateVersion: String?
+    @Published var updating = false
     @Published var paused = false
     @Published var showSettings = false
     /// Не @Published: оновлюється на кожну подію прокрутки, перемальовувати нічого не треба.
@@ -86,6 +89,8 @@ final class AppModel: ObservableObject {
     var onMinimize: () -> Void = {}
     var onDismissMention: () -> Void = {}
     var onHint: (UUID) -> Void = { _ in }
+    var onUpdate: () -> Void = {}
+    var onDismissUpdate: () -> Void = {}
     var onSelectModel: (String) -> Void = { _ in }
 
     private var noticeTask: Task<Void, Never>?
